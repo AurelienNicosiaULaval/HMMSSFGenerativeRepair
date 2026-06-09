@@ -79,7 +79,8 @@ ssf_formula <- ~ step + log(step) + cos(angle) + veg
 tpm_fixed <- ~ 1
 tpm_time <- ~ cos(2 * pi * tod / 24) + sin(2 * pi * tod / 24)
 
-initial_par_raw <- readRDS(file.path(hmmssf_repo, "inst/zebra/initial_par.RData"))[[3]]
+initial_par_list <- readRDS(file.path(hmmssf_repo, "inst/zebra/initial_par.RData"))
+initial_par_raw <- initial_par_list[[3]]
 
 make_three_state_betas <- function(two_state_betas) {
   beta_jitter <- seq(-0.05, 0.05, length.out = nrow(two_state_betas))
@@ -142,6 +143,81 @@ fit_hmmssf_model <- function(n_states, tpm_formula, ssf_par0, tpm_par0, data) {
   )
 }
 
+fit_hmmssf_multistart <- function(model_name, n_states, tpm_formula, initial_pars, data) {
+  message("Fitting ", model_name, " with ", length(initial_pars), " starts")
+
+  fit_attempts <- lapply(seq_along(initial_pars), function(start_id) {
+    message("  start ", start_id, "/", length(initial_pars))
+    fit <- try(
+      fit_hmmssf_model(
+        n_states = n_states,
+        tpm_formula = tpm_formula,
+        ssf_par0 = initial_pars[[start_id]]$betas,
+        tpm_par0 = initial_pars[[start_id]]$alphas,
+        data = data
+      ),
+      silent = TRUE
+    )
+
+    if (inherits(fit, "try-error")) {
+      return(list(
+        start = start_id,
+        fit = NULL,
+        convergence = NA_integer_,
+        objective = Inf,
+        error = conditionMessage(attr(fit, "condition"))
+      ))
+    }
+
+    list(
+      start = start_id,
+      fit = fit,
+      convergence = fit$fit$convergence,
+      objective = fit$fit$value,
+      error = NA_character_
+    )
+  })
+
+  start_results <- do.call(
+    rbind,
+    lapply(fit_attempts, function(attempt) {
+      data.frame(
+        start = attempt$start,
+        convergence = attempt$convergence,
+        objective = attempt$objective,
+        error = attempt$error,
+        stringsAsFactors = FALSE
+      )
+    })
+  )
+
+  successful <- is.finite(start_results$objective)
+  if (!any(successful)) {
+    stop(
+      "All starting values failed for ", model_name, ": ",
+      paste(start_results$error, collapse = "; "),
+      call. = FALSE
+    )
+  }
+
+  best_row <- which.min(start_results$objective)
+  best_fit <- fit_attempts[[best_row]]$fit
+  best_fit$generative_repair <- list(
+    fit_strategy = "multi_start_lowest_objective",
+    n_starts = length(initial_pars),
+    selected_start = start_results$start[best_row],
+    start_results = start_results
+  )
+
+  message(
+    "Selected start ", start_results$start[best_row],
+    " for ", model_name,
+    " with objective ", signif(start_results$objective[best_row], 8)
+  )
+
+  best_fit
+}
+
 model_specs <- list(
   M1_one_state = list(
     label = "M1 one-state SSF",
@@ -162,8 +238,8 @@ model_specs <- list(
     n_states = 2L,
     tpm_formula = tpm_time,
     fit_type = "hmmssf",
-    ssf_par0 = initial_par_raw$betas,
-    tpm_par0 = make_tpm_start(2L, tpm_time, observed_validate, initial_par_raw$alphas)
+    fit_strategy = "multi_start_lowest_objective",
+    initial_pars = initial_par_list
   ),
   M4_three_state_fixed = list(
     label = "M4 three-state fixed TPM",
@@ -179,11 +255,30 @@ fit_model <- function(model_name) {
   spec <- model_specs[[model_name]]
   fit_file <- file.path(out_dir, paste0(model_name, "_fit.rds"))
   if (reuse_fits && file.exists(fit_file)) {
-    return(readRDS(fit_file))
+    cached_fit <- readRDS(fit_file)
+    if (!identical(spec$fit_strategy, "multi_start_lowest_objective") ||
+        identical(
+          cached_fit$generative_repair$fit_strategy,
+          "multi_start_lowest_objective"
+        )) {
+      return(cached_fit)
+    }
+    message(
+      "Ignoring cached ", model_name,
+      " fit because it was not created with the article-aligned multi-start strategy."
+    )
   }
   message("Fitting ", model_name)
   fit <- if (identical(spec$fit_type, "one_state_ssf")) {
     fit_one_state_ssf(model_data, ssf_formula)
+  } else if (identical(spec$fit_strategy, "multi_start_lowest_objective")) {
+    fit_hmmssf_multistart(
+      model_name = model_name,
+      n_states = spec$n_states,
+      tpm_formula = spec$tpm_formula,
+      initial_pars = spec$initial_pars,
+      data = model_data
+    )
   } else {
     fit_hmmssf_model(
       n_states = spec$n_states,
@@ -245,7 +340,16 @@ simulate_one_markov <- function(model_name, fit, sim_id) {
 
 simulate_model <- function(model_name, fit) {
   sim_file <- file.path(out_dir, paste0(model_name, "_markov_simulations.rds"))
-  if (reuse_fits && file.exists(sim_file)) {
+  fit_file <- file.path(out_dir, paste0(model_name, "_fit.rds"))
+  fit_mtime <- if (file.exists(fit_file)) {
+    file.info(fit_file)$mtime
+  } else {
+    as.POSIXct(0, origin = "1970-01-01")
+  }
+
+  if (reuse_fits &&
+      file.exists(sim_file) &&
+      file.info(sim_file)$mtime >= fit_mtime) {
     return(readRDS(sim_file))
   }
 
@@ -255,7 +359,9 @@ simulate_model <- function(model_name, fit) {
 
   simulate_and_save <- function(i) {
     part_file <- file.path(sim_part_dir, sprintf("sim_%03d.rds", i))
-    if (reuse_fits && file.exists(part_file)) {
+    if (reuse_fits &&
+        file.exists(part_file) &&
+        file.info(part_file)$mtime >= fit_mtime) {
       return(readRDS(part_file))
     }
     set.seed(seed + 10000L * which(names(model_specs) == model_name) + i)
@@ -304,15 +410,27 @@ get_observed_states <- function(model_name, fit) {
 
 fit_summary_row <- function(model_name, fit) {
   spec <- model_specs[[model_name]]
+  fit_metadata <- fit$generative_repair
   convergence <- NA_integer_
   objective <- NA_real_
+  fit_strategy <- "single_start"
+  n_starts <- 1L
+  selected_start <- NA_integer_
+
   if (identical(spec$fit_type, "one_state_ssf")) {
     convergence <- NA_integer_
     objective <- -as.numeric(stats::logLik(fit$fit))
+    fit_strategy <- "conditional_logistic"
   } else {
     convergence <- fit$fit$convergence
     objective <- fit$fit$value
+    if (is.list(fit_metadata)) {
+      fit_strategy <- fit_metadata$fit_strategy
+      n_starts <- fit_metadata$n_starts
+      selected_start <- fit_metadata$selected_start
+    }
   }
+
   data.frame(
     model = model_name,
     label = spec$label,
@@ -325,6 +443,9 @@ fit_summary_row <- function(model_name, fit) {
     rmax = rmax,
     convergence = convergence,
     objective = objective,
+    fit_strategy = fit_strategy,
+    n_starts = n_starts,
+    selected_start = selected_start,
     stringsAsFactors = FALSE
   )
 }

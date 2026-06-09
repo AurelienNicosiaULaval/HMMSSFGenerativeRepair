@@ -36,8 +36,12 @@ The four candidate models are:
 | `M3_two_state_time` | 2 | Time-dependent transition matrix | Two states with transition probabilities depending on time of day. |
 | `M4_three_state_fixed` | 3 | Constant transition matrix | Three movement states with no time-of-day transition effect. |
 
-The third model is the closest to the zebra HMM-SSF specification used in the
-`hmmSSF` zebra example:
+The third model is aligned with the zebra HMM-SSF specification used in
+Klappstein, Thomas, and Michelot (2023). It uses the same two-state structure,
+the same vegetation and movement covariates, the same time-of-day transition
+formula, 25 gamma-generated control steps per observed step, and the same
+multi-start fitting strategy: all six stored starting-value sets are fitted,
+then the fit with the lowest negative log-likelihood is retained.
 
 ```r
 tpm_formula <- ~ cos(2 * pi * tod / 24) + sin(2 * pi * tod / 24)
@@ -90,6 +94,12 @@ diagnostics <- utils::read.csv(
   find_zebra_result("zebra_model_comparison_diagnostics.csv"),
   stringsAsFactors = FALSE
 )
+
+for (column in c("fit_strategy", "n_starts", "selected_start")) {
+  if (!column %in% names(model_summary)) {
+    model_summary[[column]] <- NA
+  }
+}
 
 model_levels <- model_summary$label
 plot_model_labels <- c(
@@ -159,7 +169,16 @@ model_summary_display$convergence_note <- ifelse(
 knitr::kable(
   model_summary_display[
     ,
-    c("model", "label", "n_states", "tpm", "convergence_note")
+    c(
+      "model",
+      "label",
+      "n_states",
+      "tpm",
+      "fit_strategy",
+      "n_starts",
+      "selected_start",
+      "convergence_note"
+    )
   ]
 )
 ```
@@ -420,10 +439,11 @@ three-state model, the third state is initialized as a small perturbation of
 the two-state SSF coefficients.
 
 ```{r starting-values, eval = FALSE}
-initial_par_raw <- readRDS(file.path(
+initial_par_list <- readRDS(file.path(
   hmmssf_repo,
   "inst/zebra/initial_par.RData"
-))[[3]]
+))
+initial_par_raw <- initial_par_list[[3]]
 
 make_three_state_betas <- function(two_state_betas) {
   beta_jitter <- seq(-0.05, 0.05, length.out = nrow(two_state_betas))
@@ -503,6 +523,72 @@ fit_hmmssf_model <- function(
   )
 }
 
+fit_hmmssf_multistart <- function(model_name, n_states, tpm_formula, initial_pars, data) {
+  fit_attempts <- lapply(seq_along(initial_pars), function(start_id) {
+    fit <- try(
+      fit_hmmssf_model(
+        n_states = n_states,
+        tpm_formula = tpm_formula,
+        ssf_par0 = initial_pars[[start_id]]$betas,
+        tpm_par0 = initial_pars[[start_id]]$alphas,
+        data = data
+      ),
+      silent = TRUE
+    )
+
+    if (inherits(fit, "try-error")) {
+      return(list(
+        start = start_id,
+        fit = NULL,
+        convergence = NA_integer_,
+        objective = Inf,
+        error = conditionMessage(attr(fit, "condition"))
+      ))
+    }
+
+    list(
+      start = start_id,
+      fit = fit,
+      convergence = fit$fit$convergence,
+      objective = fit$fit$value,
+      error = NA_character_
+    )
+  })
+
+  start_results <- do.call(
+    rbind,
+    lapply(fit_attempts, function(attempt) {
+      data.frame(
+        start = attempt$start,
+        convergence = attempt$convergence,
+        objective = attempt$objective,
+        error = attempt$error,
+        stringsAsFactors = FALSE
+      )
+    })
+  )
+
+  successful <- is.finite(start_results$objective)
+  if (!any(successful)) {
+    stop(
+      "All starting values failed for ", model_name, ": ",
+      paste(start_results$error, collapse = "; "),
+      call. = FALSE
+    )
+  }
+
+  best_row <- which.min(start_results$objective)
+  best_fit <- fit_attempts[[best_row]]$fit
+  best_fit$generative_repair <- list(
+    fit_strategy = "multi_start_lowest_objective",
+    n_starts = length(initial_pars),
+    selected_start = start_results$start[best_row],
+    start_results = start_results
+  )
+
+  best_fit
+}
+
 model_specs <- list(
   M1_one_state = list(
     n_states = 1L,
@@ -520,8 +606,8 @@ model_specs <- list(
     n_states = 2L,
     tpm_formula = tpm_time,
     fit_type = "hmmssf",
-    ssf_par0 = initial_par_raw$betas,
-    tpm_par0 = make_tpm_start(2, tpm_time, observed_validate, initial_par_raw$alphas)
+    fit_strategy = "multi_start_lowest_objective",
+    initial_pars = initial_par_list
   ),
   M4_three_state_fixed = list(
     n_states = 3L,
@@ -538,6 +624,14 @@ fits <- lapply(names(model_specs), function(model_name) {
 
   if (identical(spec$fit_type, "one_state_ssf")) {
     fit_one_state_ssf(model_data, ssf_formula)
+  } else if (identical(spec$fit_strategy, "multi_start_lowest_objective")) {
+    fit_hmmssf_multistart(
+      model_name = model_name,
+      n_states = spec$n_states,
+      tpm_formula = spec$tpm_formula,
+      initial_pars = spec$initial_pars,
+      data = model_data
+    )
   } else {
     fit_hmmssf_model(
       n_states = spec$n_states,

@@ -116,8 +116,13 @@ day.</td>
 </tr>
 </tbody>
 </table>
-<p>The third model is the closest to the zebra HMM-SSF specification
-used in the <code>hmmSSF</code> zebra example:</p>
+<p>The third model is aligned with the zebra HMM-SSF specification used
+in Klappstein, Thomas, and Michelot (2023). It uses the same two-state
+structure, the same vegetation and movement covariates, the same
+time-of-day transition formula, 25 gamma-generated control steps per
+observed step, and the same multi-start fitting strategy: all six stored
+starting-value sets are fitted, then the fit with the lowest negative
+log-likelihood is retained.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tpm_formula</span> <span class="op">&lt;-</span> <span class="op">~</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">cos</a></span><span class="op">(</span><span class="fl">2</span> <span class="op">*</span> <span class="va">pi</span> <span class="op">*</span> <span class="va">tod</span> <span class="op">/</span> <span class="fl">24</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">sin</a></span><span class="op">(</span><span class="fl">2</span> <span class="op">*</span> <span class="va">pi</span> <span class="op">*</span> <span class="va">tod</span> <span class="op">/</span> <span class="fl">24</span><span class="op">)</span></span></code></pre></div>
 <p>The first model is not a genuine HMM transition model. It is the
@@ -168,6 +173,12 @@ Markov generation for all four candidate models.</p>
 <span>  <span class="fu">find_zebra_result</span><span class="op">(</span><span class="st">"zebra_model_comparison_diagnostics.csv"</span><span class="op">)</span>,</span>
 <span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
+<span></span>
+<span><span class="kw">for</span> <span class="op">(</span><span class="va">column</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"fit_strategy"</span>, <span class="st">"n_starts"</span>, <span class="st">"selected_start"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="va">column</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">model_summary</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">model_summary</span><span class="op">[[</span><span class="va">column</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
+<span>  <span class="op">}</span></span>
+<span><span class="op">}</span></span>
 <span></span>
 <span><span class="va">model_levels</span> <span class="op">&lt;-</span> <span class="va">model_summary</span><span class="op">$</span><span class="va">label</span></span>
 <span><span class="va">plot_model_labels</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
@@ -248,22 +259,37 @@ likelihood fits.</p>
 <span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span></span>
 <span>  <span class="va">model_summary_display</span><span class="op">[</span></span>
 <span>    ,</span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"model"</span>, <span class="st">"label"</span>, <span class="st">"n_states"</span>, <span class="st">"tpm"</span>, <span class="st">"convergence_note"</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>      <span class="st">"model"</span>,</span>
+<span>      <span class="st">"label"</span>,</span>
+<span>      <span class="st">"n_states"</span>,</span>
+<span>      <span class="st">"tpm"</span>,</span>
+<span>      <span class="st">"fit_strategy"</span>,</span>
+<span>      <span class="st">"n_starts"</span>,</span>
+<span>      <span class="st">"selected_start"</span>,</span>
+<span>      <span class="st">"convergence_note"</span></span>
+<span>    <span class="op">)</span></span>
 <span>  <span class="op">]</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <table class="table">
 <colgroup>
-<col width="17%">
-<col width="21%">
-<col width="7%">
-<col width="38%">
+<col width="12%">
 <col width="14%">
+<col width="5%">
+<col width="26%">
+<col width="17%">
+<col width="5%">
+<col width="8%">
+<col width="10%">
 </colgroup>
 <thead><tr class="header">
 <th align="left">model</th>
 <th align="left">label</th>
 <th align="right">n_states</th>
 <th align="left">tpm</th>
+<th align="left">fit_strategy</th>
+<th align="right">n_starts</th>
+<th align="right">selected_start</th>
 <th align="left">convergence_note</th>
 </tr></thead>
 <tbody>
@@ -272,6 +298,9 @@ likelihood fits.</p>
 <td align="left">M1 one-state SSF</td>
 <td align="right">1</td>
 <td align="left">~1</td>
+<td align="left">conditional_logistic</td>
+<td align="right">1</td>
+<td align="right">NA</td>
 <td align="left">not applicable</td>
 </tr>
 <tr class="even">
@@ -279,6 +308,9 @@ likelihood fits.</p>
 <td align="left">M2 two-state fixed TPM</td>
 <td align="right">2</td>
 <td align="left">~1</td>
+<td align="left">single_start</td>
+<td align="right">1</td>
+<td align="right">NA</td>
 <td align="left">optim code 1</td>
 </tr>
 <tr class="odd">
@@ -286,6 +318,9 @@ likelihood fits.</p>
 <td align="left">M3 two-state time TPM</td>
 <td align="right">2</td>
 <td align="left">~cos(2 * pi * tod/24) + sin(2 * pi * tod/24)</td>
+<td align="left">multi_start_lowest_objective</td>
+<td align="right">6</td>
+<td align="right">3</td>
 <td align="left">optim code 1</td>
 </tr>
 <tr class="even">
@@ -293,6 +328,9 @@ likelihood fits.</p>
 <td align="left">M4 three-state fixed TPM</td>
 <td align="right">3</td>
 <td align="left">~1</td>
+<td align="left">single_start</td>
+<td align="right">1</td>
+<td align="right">NA</td>
 <td align="left">optim code 1</td>
 </tr>
 </tbody>
@@ -1102,10 +1140,11 @@ model. For the fixed-transition models, only transition intercepts are
 used. For the three-state model, the third state is initialized as a
 small perturbation of the two-state SSF coefficients.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">initial_par_raw</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">readRDS</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">initial_par_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">readRDS</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span></span>
 <span>  <span class="va">hmmssf_repo</span>,</span>
 <span>  <span class="st">"inst/zebra/initial_par.RData"</span></span>
-<span><span class="op">)</span><span class="op">)</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">initial_par_raw</span> <span class="op">&lt;-</span> <span class="va">initial_par_list</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
 <span><span class="va">make_three_state_betas</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">two_state_betas</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">beta_jitter</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.05</span>, <span class="fl">0.05</span>, length.out <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">two_state_betas</span><span class="op">)</span><span class="op">)</span></span>
@@ -1185,6 +1224,72 @@ logistic SSF with a degenerate latent state.</p>
 <span>  <span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
+<span><span class="va">fit_hmmssf_multistart</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">model_name</span>, <span class="va">n_states</span>, <span class="va">tpm_formula</span>, <span class="va">initial_pars</span>, <span class="va">data</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">fit_attempts</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">initial_pars</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">start_id</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">fit</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/try.html" class="external-link">try</a></span><span class="op">(</span></span>
+<span>      <span class="fu">fit_hmmssf_model</span><span class="op">(</span></span>
+<span>        n_states <span class="op">=</span> <span class="va">n_states</span>,</span>
+<span>        tpm_formula <span class="op">=</span> <span class="va">tpm_formula</span>,</span>
+<span>        ssf_par0 <span class="op">=</span> <span class="va">initial_pars</span><span class="op">[[</span><span class="va">start_id</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">betas</span>,</span>
+<span>        tpm_par0 <span class="op">=</span> <span class="va">initial_pars</span><span class="op">[[</span><span class="va">start_id</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">alphas</span>,</span>
+<span>        data <span class="op">=</span> <span class="va">data</span></span>
+<span>      <span class="op">)</span>,</span>
+<span>      silent <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>    <span class="op">)</span></span>
+<span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">inherits</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"try-error"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>        start <span class="op">=</span> <span class="va">start_id</span>,</span>
+<span>        fit <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>        convergence <span class="op">=</span> <span class="cn">NA_integer_</span>,</span>
+<span>        objective <span class="op">=</span> <span class="cn">Inf</span>,</span>
+<span>        error <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">conditionMessage</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"condition"</span><span class="op">)</span><span class="op">)</span></span>
+<span>      <span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="op">}</span></span>
+<span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>      start <span class="op">=</span> <span class="va">start_id</span>,</span>
+<span>      fit <span class="op">=</span> <span class="va">fit</span>,</span>
+<span>      convergence <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">fit</span><span class="op">$</span><span class="va">convergence</span>,</span>
+<span>      objective <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">fit</span><span class="op">$</span><span class="va">value</span>,</span>
+<span>      error <span class="op">=</span> <span class="cn">NA_character_</span></span>
+<span>    <span class="op">)</span></span>
+<span>  <span class="op">}</span><span class="op">)</span></span>
+<span></span>
+<span>  <span class="va">start_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span></span>
+<span>    <span class="va">rbind</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">fit_attempts</span>, <span class="kw">function</span><span class="op">(</span><span class="va">attempt</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>        start <span class="op">=</span> <span class="va">attempt</span><span class="op">$</span><span class="va">start</span>,</span>
+<span>        convergence <span class="op">=</span> <span class="va">attempt</span><span class="op">$</span><span class="va">convergence</span>,</span>
+<span>        objective <span class="op">=</span> <span class="va">attempt</span><span class="op">$</span><span class="va">objective</span>,</span>
+<span>        error <span class="op">=</span> <span class="va">attempt</span><span class="op">$</span><span class="va">error</span>,</span>
+<span>        stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>      <span class="op">)</span></span>
+<span>    <span class="op">}</span><span class="op">)</span></span>
+<span>  <span class="op">)</span></span>
+<span></span>
+<span>  <span class="va">successful</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/is.finite.html" class="external-link">is.finite</a></span><span class="op">(</span><span class="va">start_results</span><span class="op">$</span><span class="va">objective</span><span class="op">)</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/any.html" class="external-link">any</a></span><span class="op">(</span><span class="va">successful</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="kw"><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop</a></span><span class="op">(</span></span>
+<span>      <span class="st">"All starting values failed for "</span>, <span class="va">model_name</span>, <span class="st">": "</span>,</span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="va">start_results</span><span class="op">$</span><span class="va">error</span>, collapse <span class="op">=</span> <span class="st">"; "</span><span class="op">)</span>,</span>
+<span>      call. <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>    <span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span></span>
+<span>  <span class="va">best_row</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/which.min.html" class="external-link">which.min</a></span><span class="op">(</span><span class="va">start_results</span><span class="op">$</span><span class="va">objective</span><span class="op">)</span></span>
+<span>  <span class="va">best_fit</span> <span class="op">&lt;-</span> <span class="va">fit_attempts</span><span class="op">[[</span><span class="va">best_row</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">fit</span></span>
+<span>  <span class="va">best_fit</span><span class="op">$</span><span class="va">generative_repair</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    fit_strategy <span class="op">=</span> <span class="st">"multi_start_lowest_objective"</span>,</span>
+<span>    n_starts <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">initial_pars</span><span class="op">)</span>,</span>
+<span>    selected_start <span class="op">=</span> <span class="va">start_results</span><span class="op">$</span><span class="va">start</span><span class="op">[</span><span class="va">best_row</span><span class="op">]</span>,</span>
+<span>    start_results <span class="op">=</span> <span class="va">start_results</span></span>
+<span>  <span class="op">)</span></span>
+<span></span>
+<span>  <span class="va">best_fit</span></span>
+<span><span class="op">}</span></span>
+<span></span>
 <span><span class="va">model_specs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  M1_one_state <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    n_states <span class="op">=</span> <span class="fl">1L</span>,</span>
@@ -1202,8 +1307,8 @@ logistic SSF with a degenerate latent state.</p>
 <span>    n_states <span class="op">=</span> <span class="fl">2L</span>,</span>
 <span>    tpm_formula <span class="op">=</span> <span class="va">tpm_time</span>,</span>
 <span>    fit_type <span class="op">=</span> <span class="st">"hmmssf"</span>,</span>
-<span>    ssf_par0 <span class="op">=</span> <span class="va">initial_par_raw</span><span class="op">$</span><span class="va">betas</span>,</span>
-<span>    tpm_par0 <span class="op">=</span> <span class="fu">make_tpm_start</span><span class="op">(</span><span class="fl">2</span>, <span class="va">tpm_time</span>, <span class="va">observed_validate</span>, <span class="va">initial_par_raw</span><span class="op">$</span><span class="va">alphas</span><span class="op">)</span></span>
+<span>    fit_strategy <span class="op">=</span> <span class="st">"multi_start_lowest_objective"</span>,</span>
+<span>    initial_pars <span class="op">=</span> <span class="va">initial_par_list</span></span>
 <span>  <span class="op">)</span>,</span>
 <span>  M4_three_state_fixed <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    n_states <span class="op">=</span> <span class="fl">3L</span>,</span>
@@ -1220,6 +1325,14 @@ logistic SSF with a degenerate latent state.</p>
 <span></span>
 <span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">spec</span><span class="op">$</span><span class="va">fit_type</span>, <span class="st">"one_state_ssf"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="fu">fit_one_state_ssf</span><span class="op">(</span><span class="va">model_data</span>, <span class="va">ssf_formula</span><span class="op">)</span></span>
+<span>  <span class="op">}</span> <span class="kw">else</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">spec</span><span class="op">$</span><span class="va">fit_strategy</span>, <span class="st">"multi_start_lowest_objective"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu">fit_hmmssf_multistart</span><span class="op">(</span></span>
+<span>      model_name <span class="op">=</span> <span class="va">model_name</span>,</span>
+<span>      n_states <span class="op">=</span> <span class="va">spec</span><span class="op">$</span><span class="va">n_states</span>,</span>
+<span>      tpm_formula <span class="op">=</span> <span class="va">spec</span><span class="op">$</span><span class="va">tpm_formula</span>,</span>
+<span>      initial_pars <span class="op">=</span> <span class="va">spec</span><span class="op">$</span><span class="va">initial_pars</span>,</span>
+<span>      data <span class="op">=</span> <span class="va">model_data</span></span>
+<span>    <span class="op">)</span></span>
 <span>  <span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
 <span>    <span class="fu">fit_hmmssf_model</span><span class="op">(</span></span>
 <span>      n_states <span class="op">=</span> <span class="va">spec</span><span class="op">$</span><span class="va">n_states</span>,</span>
