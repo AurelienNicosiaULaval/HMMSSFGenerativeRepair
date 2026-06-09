@@ -1,0 +1,8 @@
+^_pkgdown\.yml$
+^docs$
+^data-raw$
+^\.github$
+^\.DS_Store$
+^README\.Rmd$
+^HMMSSFGenerativeRepair\.Rcheck$
+^HMMSSFGenerativeRepair_[0-9.]+\.tar\.gz$

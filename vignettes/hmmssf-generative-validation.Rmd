@@ -1,0 +1,201 @@
+---
+title: "Generative validation for HMM-SSF models"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Generative validation for HMM-SSF models}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.5
+)
+```
+
+This vignette introduces the minimal workflow implemented in
+`HMMSSFGenerativeRepair`. It uses a simulated HMM-SSF-like object so that the
+example can run without empirical animal movement data.
+
+The goal is generative validation: simulate trajectories from a fitted model,
+then compare the observed trajectory with the simulated trajectories. The main
+quantities are diagnostic statistics and Monte Carlo p-values.
+
+## Four trajectory-generation strategies
+
+An HMM-SSF has two coupled layers:
+
+1. a latent state process;
+2. a state-specific spatial movement and selection process.
+
+The package separates four ways to generate the latent state path. After the
+state path is chosen, spatial steps are generated from the state-specific
+movement and selection kernel.
+
+| Method | State path generation | Diagnostic role |
+| --- | --- | --- |
+| `markov` | Simulate states from the fitted transition model. | Validates the full fitted generative process. |
+| `viterbi` | Reuse the Viterbi state path. | Checks whether state-specific kernels work if the decoded path is fixed. |
+| `viterbi_tube` | Sample paths close to the Viterbi path under an epsilon tolerance. | Checks sensitivity to near-optimal latent paths. |
+| `posterior` | Sample state paths using posterior state information. | Checks sensitivity to latent-state uncertainty. |
+
+The `markov` strategy is the natural full-model generative check. The other
+strategies are diagnostic decompositions. They help identify whether a failure
+is more likely due to the latent transition model, the decoded state path, or
+the state-specific movement kernels.
+
+## Minimal example
+
+```{r setup}
+library(HMMSSFGenerativeRepair)
+
+fit <- example_hmmssf_list(n = 50, seed = 123)
+observed_track <- fit$observed_track
+```
+
+The call below runs all four simulation strategies and computes a small set of
+trajectory-level and state-aware diagnostics.
+
+```{r diagnose}
+diagnosis <- diagnose_hmmssf(
+  fit = fit,
+  observed_track = observed_track,
+  n_sims = 9,
+  methods = c("markov", "viterbi", "viterbi_tube", "posterior"),
+  diagnostics = c(
+    "ud_wasserstein",
+    "msd",
+    "sinuosity",
+    "state_occupancy",
+    "state_residence_time",
+    "switching_rate",
+    "transition_counts",
+    "state_conditioned_step_length",
+    "state_conditioned_turning_angle",
+    "state_conditioned_msd"
+  ),
+  parameter_uncertainty = FALSE,
+  epsilon = 10,
+  seed = 123
+)
+
+head(summary(diagnosis))
+```
+
+The dashboard can be drawn for any simulation strategy with the `method`
+argument.
+
+```{r dashboard}
+plot(diagnosis, method = "markov")
+```
+
+The same object contains dashboards for the other strategies:
+
+```{r dashboards-other-methods, eval = FALSE}
+plot(diagnosis, method = "viterbi")
+plot(diagnosis, method = "viterbi_tube")
+plot(diagnosis, method = "posterior")
+```
+
+## Reading the Monte Carlo p-values
+
+For each diagnostic, the package compares the observed discrepancy with the
+corresponding simulated discrepancies. Small p-values indicate that the
+observed trajectory is atypical under the simulated model.
+
+```{r global-pvalues}
+global_rows <- is.na(diagnosis$diagnostics$state)
+diagnosis$diagnostics[
+  global_rows,
+  c("method", "diagnostic", "observed_statistic", "simulated_median", "p_value")
+]
+```
+
+With `n_sims = 99`, the smallest possible Monte Carlo p-value is `0.01`, because
+the rank p-value uses the finite-simulation correction
+
+```text
+(number of simulated statistics at least as extreme as observed + 1) /
+  (number of simulations + 1)
+```
+
+## What the four strategies diagnose
+
+The four strategies should not be interpreted as four competing models. They
+are four diagnostic views of the same fitted model.
+
+If `markov` fails but `viterbi` passes, the state-specific movement kernels may
+be reasonable, while the fitted transition model may produce unrealistic
+state occupancy, switching, or residence times.
+
+If both `markov` and `viterbi` fail, the problem is more likely in the
+state-specific movement kernels, omitted covariates, movement distributions, or
+state definitions.
+
+If `viterbi_tube` differs from `viterbi`, conclusions are sensitive to small
+changes around the decoded latent path.
+
+If `posterior` differs from `viterbi`, conclusions are sensitive to state
+classification uncertainty.
+
+## One-state models
+
+For a one-state model, the latent process is degenerate. All four state
+generation strategies collapse to the same state path:
+
+```text
+1, 1, 1, ..., 1
+```
+
+In that case, the meaningful validation is the original trajectory-level
+generative validation: compare observed and simulated trajectories using global
+diagnostics such as UD, MSD, and sinuosity. State diagnostics such as occupancy,
+switching rate, and transition counts are mathematically trivial.
+
+```{r one-state}
+one_state_fit <- list(
+  initial = 1,
+  transition = matrix(1, 1, 1),
+  kernels = list(list(
+    step = list(dist = "gamma", shape = 2, scale = 0.6),
+    angle = list(dist = "wrapped_normal", mean = 0, sd = 0.9)
+  )),
+  observed_track = observed_track,
+  viterbi_path = rep(1L, nrow(observed_track)),
+  posterior = matrix(1, nrow = nrow(observed_track), ncol = 1),
+  log_emission = matrix(0, nrow = nrow(observed_track), ncol = 1)
+)
+
+one_state_diagnosis <- diagnose_hmmssf(
+  fit = one_state_fit,
+  observed_track = observed_track,
+  n_sims = 9,
+  methods = c("markov", "viterbi", "viterbi_tube", "posterior"),
+  diagnostics = c("ud_wasserstein", "msd", "sinuosity", "state_occupancy"),
+  parameter_uncertainty = FALSE,
+  epsilon = 0,
+  seed = 321
+)
+
+one_state_diagnosis$diagnostics[
+  one_state_diagnosis$diagnostics$diagnostic %in%
+    c("ud_wasserstein", "msd", "sinuosity", "state_occupancy"),
+  c("method", "diagnostic", "state", "p_value")
+]
+```
+
+This is the expected behavior: the trajectory-level diagnostics remain
+meaningful, while the state process contributes no additional structure.
+
+## Notes on sharpness
+
+The primary validation quantity is the Monte Carlo p-value. The package also
+computes a sharpness label, which summarizes whether the simulated diagnostic
+envelope is narrow or diffuse. This label does not replace the p-value. It is a
+secondary warning about how informative the simulated reference distribution is.
+
+For workflows that should match a p-value-only validation report, report the
+diagnostic statistic, the simulation envelope, and the Monte Carlo p-value.

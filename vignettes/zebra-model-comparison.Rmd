@@ -1,0 +1,743 @@
+---
+title: "Zebra model comparison with Markov generation"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Zebra model comparison with Markov generation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 8,
+  fig.height = 5
+)
+```
+
+This article describes a zebra model-comparison workflow. The simulation
+strategy is fixed to `markov` for every fitted model. This means that each
+candidate model is evaluated through its full generative process:
+
+```text
+fitted transition model -> simulated latent states -> state-specific SSF steps
+```
+
+Keeping the generation strategy fixed makes the comparison about the fitted
+model structure, not about the latent-state conditioning strategy.
+
+The four candidate models are:
+
+| Label | States | Transition model | Interpretation |
+| --- | --- | --- | --- |
+| `M1_one_state` | 1 | Degenerate | Single-state SSF baseline. |
+| `M2_two_state_fixed` | 2 | Constant transition matrix | Two movement states with no time-of-day transition effect. |
+| `M3_two_state_time` | 2 | Time-dependent transition matrix | Two states with transition probabilities depending on time of day. |
+| `M4_three_state_fixed` | 3 | Constant transition matrix | Three movement states with no time-of-day transition effect. |
+
+The third model is the closest to the zebra HMM-SSF specification used in the
+`hmmSSF` zebra example:
+
+```r
+tpm_formula <- ~ cos(2 * pi * tod / 24) + sin(2 * pi * tod / 24)
+```
+
+The first model is not a genuine HMM transition model. It is the one-state SSF
+case: the latent state is always 1, so state diagnostics such as switching rate
+and transition counts are mathematically trivial.
+
+## Embedded results
+
+The tables and figures below are the embedded results from
+`data-raw/zebra_model_comparison_results.R`. The run uses Markov generation for
+all four candidate models.
+
+```{r load-zebra-results}
+library(ggplot2)
+
+find_zebra_result <- function(filename) {
+  installed_file <- system.file(
+    "extdata",
+    filename,
+    package = "HMMSSFGenerativeRepair"
+  )
+  if (nzchar(installed_file)) {
+    return(installed_file)
+  }
+
+  local_candidates <- file.path(
+    c("inst/extdata", "../inst/extdata"),
+    filename
+  )
+  local_candidates <- local_candidates[file.exists(local_candidates)]
+  if (length(local_candidates) > 0L) {
+    return(local_candidates[1L])
+  }
+
+  stop("Could not find embedded zebra result file: ", filename, call. = FALSE)
+}
+
+model_summary <- utils::read.csv(
+  find_zebra_result("zebra_model_comparison_model_summary.csv"),
+  stringsAsFactors = FALSE
+)
+global_diagnostics <- utils::read.csv(
+  find_zebra_result("zebra_model_comparison_global_diagnostics.csv"),
+  stringsAsFactors = FALSE
+)
+diagnostics <- utils::read.csv(
+  find_zebra_result("zebra_model_comparison_diagnostics.csv"),
+  stringsAsFactors = FALSE
+)
+
+model_levels <- model_summary$label
+plot_model_labels <- c(
+  "M1 one-state SSF" = "M1\none-state SSF",
+  "M2 two-state fixed TPM" = "M2\n2-state fixed",
+  "M3 two-state time TPM" = "M3\n2-state time",
+  "M4 three-state fixed TPM" = "M4\n3-state fixed"
+)
+plot_model_short_labels <- c(
+  "M1 one-state SSF" = "M1",
+  "M2 two-state fixed TPM" = "M2",
+  "M3 two-state time TPM" = "M3",
+  "M4 three-state fixed TPM" = "M4"
+)
+diagnostic_labels <- c(
+  ud_wasserstein = "UD Wasserstein",
+  msd = "MSD",
+  sinuosity = "Sinuosity",
+  state_occupancy = "State occupancy",
+  state_residence_time = "Residence time",
+  state_conditioned_step_length = "Step length by state",
+  state_conditioned_turning_angle = "Turning angle by state",
+  state_conditioned_msd = "MSD by state"
+)
+
+global_diagnostics$model_label <- factor(
+  global_diagnostics$model_label,
+  levels = model_levels
+)
+global_diagnostics$diagnostic_label <- factor(
+  diagnostic_labels[global_diagnostics$diagnostic],
+  levels = diagnostic_labels[c("ud_wasserstein", "msd", "sinuosity")]
+)
+diagnostics$model_label <- factor(diagnostics$model_label, levels = model_levels)
+diagnostics$diagnostic_label <- diagnostic_labels[diagnostics$diagnostic]
+```
+
+The simulation settings used for the embedded comparison are:
+
+```{r simulation-settings}
+simulation_settings <- unique(model_summary[
+  ,
+  c("generation", "n_validate", "n_sims", "n_zeros", "rmax")
+])
+
+knitr::kable(simulation_settings)
+```
+
+The model table reports the fitted model structure and the optimizer status
+stored in the fitted objects. In this run, the multi-state `hmmSSF` fits report
+`optim` code 1, so these results should be read as a reproducible computational
+comparison from these fitted objects, not as final publication-quality maximum
+likelihood fits.
+
+```{r fitted-model-summary}
+model_summary_display <- model_summary
+model_summary_display$convergence_note <- ifelse(
+  is.na(model_summary_display$convergence),
+  "not applicable",
+  ifelse(
+    model_summary_display$convergence == 0,
+    "converged",
+    paste0("optim code ", model_summary_display$convergence)
+  )
+)
+
+knitr::kable(
+  model_summary_display[
+    ,
+    c("model", "label", "n_states", "tpm", "convergence_note")
+  ]
+)
+```
+
+The next table gives the trajectory-level diagnostics that are comparable across
+all four models. A larger Monte Carlo p-value means that the observed statistic
+is less extreme relative to the model-generated trajectories.
+
+```{r global-diagnostic-table}
+global_display <- global_diagnostics[
+  ,
+  c(
+    "model_label",
+    "diagnostic_label",
+    "observed_statistic",
+    "simulated_median",
+    "simulated_q025",
+    "simulated_q975",
+    "p_value"
+  )
+]
+
+knitr::kable(
+  global_display,
+  digits = 3,
+  col.names = c(
+    "Model",
+    "Diagnostic",
+    "Observed",
+    "Simulated median",
+    "Simulated q025",
+    "Simulated q975",
+    "Monte Carlo p-value"
+  )
+)
+```
+
+```{r global-pvalue-heatmap}
+ggplot(
+  global_diagnostics,
+  aes(x = model_label, y = diagnostic_label, fill = p_value)
+) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sprintf("%.2f", p_value)), size = 3) +
+  scale_fill_gradient(
+    low = "#D55E00",
+    high = "#4C78A8",
+    limits = c(0, 1)
+  ) +
+  scale_x_discrete(labels = plot_model_labels) +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 8)) +
+  labs(
+    x = "Model",
+    y = "Diagnostic",
+    fill = "p-value",
+    title = "Zebra observed versus Markov-simulated diagnostics",
+    subtitle = "99 Markov simulations per fitted model"
+  )
+```
+
+```{r observed-simulated-summary}
+observed_simulated <- rbind(
+  data.frame(
+    model_label = global_diagnostics$model_label,
+    diagnostic_label = global_diagnostics$diagnostic_label,
+    source = "Observed",
+    value = global_diagnostics$observed_statistic
+  ),
+  data.frame(
+    model_label = global_diagnostics$model_label,
+    diagnostic_label = global_diagnostics$diagnostic_label,
+    source = "Simulated median",
+    value = global_diagnostics$simulated_median
+  )
+)
+
+ggplot(
+  observed_simulated,
+  aes(x = model_label, y = value, color = source, shape = source)
+) +
+  geom_point(
+    size = 2.4,
+    position = position_dodge(width = 0.45)
+  ) +
+  facet_wrap(~ diagnostic_label, scales = "free_y") +
+  scale_x_discrete(labels = plot_model_short_labels) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(size = 8),
+    plot.margin = margin(10, 20, 20, 20)
+  ) +
+  labs(
+    x = "Model",
+    y = "Statistic",
+    color = NULL,
+    shape = NULL,
+    title = "Observed statistic and Markov-simulated median",
+    subtitle = "Each panel has its own y-axis scale"
+  )
+```
+
+The state diagnostics are mainly useful for the multi-state models. For the
+one-state baseline, the state process is degenerate and state diagnostics are
+shown only as a check that the one-state case is handled.
+
+```{r selected-state-diagnostics}
+selected_state_diagnostics <- diagnostics[
+  !is.na(diagnostics$state) &
+    diagnostics$diagnostic %in% c(
+      "state_occupancy",
+      "state_residence_time",
+      "state_conditioned_step_length",
+      "state_conditioned_turning_angle",
+      "state_conditioned_msd"
+    ),
+  ,
+  drop = FALSE
+]
+
+selected_state_display <- selected_state_diagnostics[
+  ,
+  c(
+    "model_label",
+    "diagnostic_label",
+    "state",
+    "observed_statistic",
+    "simulated_median",
+    "p_value",
+    "warning"
+  )
+]
+
+knitr::kable(
+  selected_state_display,
+  digits = 3,
+  col.names = c(
+    "Model",
+    "Diagnostic",
+    "State",
+    "Observed",
+    "Simulated median",
+    "Monte Carlo p-value",
+    "Warning"
+  )
+)
+```
+
+In this embedded run, no candidate model reproduces every global diagnostic.
+The UD Wasserstein p-values are not extreme, but MSD remains extreme for every
+model. The three-state fixed model gives the largest p-value for sinuosity in
+this run, while the two-state time-dependent model is closest to the original
+zebra transition specification. Because the multi-state optimizers report code
+1, the comparison should be treated as an executable demonstration and a
+diagnostic screen rather than as a final model-selection result.
+
+## Data preparation
+
+The code below assumes that the local `hmmSSF` repository is available and that
+the zebra example files can be read from `inst/zebra` and `inst/functions`.
+These chunks are not evaluated automatically because fitting the four models and
+simulating trajectories is computationally expensive.
+
+```{r zebra-data, eval = FALSE}
+library(HMMSSFGenerativeRepair)
+library(hmmSSF)
+library(raster)
+library(ggplot2)
+library(survival)
+
+root_dir <- "/Users/aureliennicosia/Documents/validHmmSSF"
+hmmssf_repo <- file.path(root_dir, "hmmSSF")
+out_dir <- file.path(root_dir, "zebra_validation")
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+
+source(file.path(hmmssf_repo, "inst/functions/cov_df.R"))
+source(file.path(hmmssf_repo, "inst/functions/simHMMSSF.R"))
+
+set.seed(250)
+
+zebra_processed <- readRDS(file.path(
+  hmmssf_repo,
+  "inst/zebra/zebra_processed.RData"
+))
+track_raw <- subset(zebra_processed, obs == 1)
+track_for_controls <- track_raw[, c("ID", "x", "y", "time")]
+habitat <- raster::raster(file.path(
+  hmmssf_repo,
+  "inst/zebra/vegetation2.grd"
+))
+
+model_data_file <- file.path(out_dir, "zebra_model_data.rds")
+
+if (file.exists(model_data_file)) {
+  model_data <- readRDS(model_data_file)
+} else {
+  model_data <- hmmSSF::get_controls(
+    obs = track_for_controls,
+    n_controls = 25,
+    distr = "gamma"
+  )
+
+  not_na_xy <- which(!is.na(model_data$x) & !is.na(model_data$y))
+  model_data$veg[not_na_xy] <- raster::extract(
+    habitat,
+    model_data[not_na_xy, c("x", "y")],
+    method = "simple"
+  )
+  model_data$veg <- factor(model_data$veg)
+  levels(model_data$veg) <- c(
+    "grassland",
+    "bushed grassland",
+    "bushland",
+    "woodland"
+  )
+
+  model_data$tod <- as.numeric(format(model_data$time, "%H")) +
+    as.numeric(format(model_data$time, "%M")) / 60
+
+  zero_step <- which(!is.na(model_data$step) & model_data$step == 0)
+  positive_step <- model_data$step[
+    !is.na(model_data$step) & model_data$step > 0
+  ]
+  if (length(zero_step) > 0L) {
+    model_data$step[zero_step] <- model_data$step[zero_step] +
+      stats::runif(length(zero_step), 0, min(positive_step))
+  }
+
+  saveRDS(model_data, model_data_file)
+}
+
+observed_full <- subset(model_data, obs == 1)
+complete_observed_index <- which(
+  is.finite(observed_full$x) & is.finite(observed_full$y)
+)
+
+n_validate <- 250
+validation_index <- complete_observed_index[seq_len(n_validate)]
+observed_validate <- observed_full[
+  validation_index,
+  c("x", "y", "time", "tod")
+]
+observed_track <- data.frame(
+  x = observed_validate$x,
+  y = observed_validate$y
+)
+
+ssf_formula <- ~ step + log(step) + cos(angle) + veg
+tpm_fixed <- ~ 1
+tpm_time <- ~ cos(2 * pi * tod / 24) + sin(2 * pi * tod / 24)
+```
+
+## Starting values
+
+The zebra example already contains starting values for the two-state model. For
+the fixed-transition models, only transition intercepts are used. For the
+three-state model, the third state is initialized as a small perturbation of
+the two-state SSF coefficients.
+
+```{r starting-values, eval = FALSE}
+initial_par_raw <- readRDS(file.path(
+  hmmssf_repo,
+  "inst/zebra/initial_par.RData"
+))[[3]]
+
+make_three_state_betas <- function(two_state_betas) {
+  beta_jitter <- seq(-0.05, 0.05, length.out = nrow(two_state_betas))
+  cbind(
+    two_state_betas,
+    rowMeans(two_state_betas) + beta_jitter
+  )
+}
+
+make_tpm_start <- function(n_states, tpm_formula, observed_data, raw_alphas) {
+  tpm_mm <- stats::model.matrix(tpm_formula, observed_data)
+  n_tpm_cov <- ncol(tpm_mm)
+  n_cols <- n_states * (n_states - 1L)
+  out <- matrix(0, nrow = n_tpm_cov, ncol = n_cols)
+
+  if (n_states == 2L && n_tpm_cov == nrow(raw_alphas)) {
+    out[, ] <- raw_alphas
+  } else if (n_states == 2L && n_tpm_cov == 1L) {
+    out[1L, ] <- raw_alphas[1L, ]
+  } else if (n_states == 3L && n_tpm_cov == 1L) {
+    out[1L, 1L] <- raw_alphas[1L, 1L]
+    out[1L, 3L] <- raw_alphas[1L, 2L]
+  }
+
+  out
+}
+```
+
+## Fitting the four models
+
+`hmmSSF::hmmSSF()` is used for the multi-state HMM-SSF models. The one-state
+model is fitted with `survival::clogit()` because it is a standard conditional
+logistic SSF with a degenerate latent state.
+
+```{r fit-functions, eval = FALSE}
+fit_one_state_ssf <- function(data, ssf_formula) {
+  formula <- stats::as.formula(
+    paste0("obs ~ ", deparse(ssf_formula[[2L]]), " + strata(stratum)")
+  )
+  fit <- survival::clogit(formula, data = data)
+
+  betas <- matrix(stats::coef(fit), ncol = 1)
+  rownames(betas) <- names(stats::coef(fit))
+  colnames(betas) <- "S1"
+
+  list(
+    par = list(
+      ssf = betas,
+      tpm = matrix(numeric(0), nrow = 1, ncol = 0)
+    ),
+    fit = fit,
+    args = list(
+      ssf_formula = ssf_formula,
+      tpm_formula = ~ 1,
+      data = data,
+      n_states = 1L
+    )
+  )
+}
+
+fit_hmmssf_model <- function(
+  n_states,
+  tpm_formula,
+  ssf_par0,
+  tpm_par0,
+  data,
+  maxit = 2000
+) {
+  hmmSSF::hmmSSF(
+    ssf_formula = ssf_formula,
+    tpm_formula = tpm_formula,
+    data = data,
+    ssf_par0 = ssf_par0,
+    tpm_par0 = tpm_par0,
+    n_states = n_states,
+    optim_opts = list(trace = 0, maxit = maxit)
+  )
+}
+
+model_specs <- list(
+  M1_one_state = list(
+    n_states = 1L,
+    tpm_formula = ~ 1,
+    fit_type = "one_state_ssf"
+  ),
+  M2_two_state_fixed = list(
+    n_states = 2L,
+    tpm_formula = tpm_fixed,
+    fit_type = "hmmssf",
+    ssf_par0 = initial_par_raw$betas,
+    tpm_par0 = make_tpm_start(2, tpm_fixed, observed_validate, initial_par_raw$alphas)
+  ),
+  M3_two_state_time = list(
+    n_states = 2L,
+    tpm_formula = tpm_time,
+    fit_type = "hmmssf",
+    ssf_par0 = initial_par_raw$betas,
+    tpm_par0 = make_tpm_start(2, tpm_time, observed_validate, initial_par_raw$alphas)
+  ),
+  M4_three_state_fixed = list(
+    n_states = 3L,
+    tpm_formula = tpm_fixed,
+    fit_type = "hmmssf",
+    ssf_par0 = make_three_state_betas(initial_par_raw$betas),
+    tpm_par0 = make_tpm_start(3, tpm_fixed, observed_validate, initial_par_raw$alphas)
+  )
+)
+
+fits <- lapply(names(model_specs), function(model_name) {
+  spec <- model_specs[[model_name]]
+  message("Fitting ", model_name)
+
+  if (identical(spec$fit_type, "one_state_ssf")) {
+    fit_one_state_ssf(model_data, ssf_formula)
+  } else {
+    fit_hmmssf_model(
+      n_states = spec$n_states,
+      tpm_formula = spec$tpm_formula,
+      ssf_par0 = spec$ssf_par0,
+      tpm_par0 = spec$tpm_par0,
+      data = model_data
+    )
+  }
+})
+names(fits) <- names(model_specs)
+```
+
+## Markov simulation for every model
+
+The simulation strategy is fixed to Markov generation. For the one-state model,
+this simply means that every simulated state is 1.
+
+```{r simulate-markov, eval = FALSE}
+n_sims <- 99
+n_zeros <- 500
+rmax <- 5
+ssf_cov <- list(veg = habitat)
+levels_cov <- list(veg = levels(model_data$veg))
+y1 <- as.numeric(observed_validate[1L, c("x", "y")])
+
+simulate_markov_trajectories <- function(model_name, fit, spec) {
+  fit_par <- list(
+    betas = fit$par$ssf,
+    alphas = fit$par$tpm
+  )
+
+  tracks_with_states <- lapply(seq_len(n_sims), function(sim_id) {
+    simHMMSSF(
+      ssf_formula = ssf_formula,
+      tpm_formula = spec$tpm_formula,
+      ssf_cov = ssf_cov,
+      tpm_cov = observed_validate,
+      par = fit_par,
+      n_states = spec$n_states,
+      n_obs = n_validate,
+      n_zeros = n_zeros,
+      y1 = y1,
+      rmax = rmax,
+      levels_cov = levels_cov,
+      print = FALSE
+    )
+  })
+
+  simulated_tracks <- lapply(tracks_with_states, function(track) {
+    data.frame(x = track$x, y = track$y)
+  })
+  names(simulated_tracks) <- paste0("sim_", seq_len(n_sims))
+
+  simulated_states <- do.call(
+    rbind,
+    lapply(tracks_with_states, function(track) as.integer(track$state))
+  )
+
+  list(
+    simulated_tracks = simulated_tracks,
+    simulated_states = simulated_states
+  )
+}
+
+simulations <- lapply(names(fits), function(model_name) {
+  message("Simulating ", model_name)
+  simulate_markov_trajectories(
+    model_name = model_name,
+    fit = fits[[model_name]],
+    spec = model_specs[[model_name]]
+  )
+})
+names(simulations) <- names(fits)
+```
+
+## Generative diagnostics
+
+The wrapper `diagnose_hmmssf_simulations()` is used here because trajectories
+have already been simulated with the zebra-specific simulator.
+
+```{r diagnose-models, eval = FALSE}
+diagnostic_names <- c(
+  "ud_wasserstein",
+  "msd",
+  "sinuosity",
+  "state_occupancy",
+  "state_residence_time",
+  "switching_rate",
+  "transition_counts",
+  "state_conditioned_step_length",
+  "state_conditioned_turning_angle",
+  "state_conditioned_msd"
+)
+
+get_observed_states <- function(model_name, fit, spec) {
+  if (spec$n_states == 1L) {
+    rep(1L, nrow(observed_track))
+  } else {
+    hmmSSF::viterbi_decoding(fit)[validation_index]
+  }
+}
+
+diagnoses <- lapply(names(fits), function(model_name) {
+  spec <- model_specs[[model_name]]
+  sim <- simulations[[model_name]]
+
+  diagnose_hmmssf_simulations(
+    observed_track = observed_track,
+    simulated_tracks = sim$simulated_tracks,
+    observed_states = get_observed_states(model_name, fits[[model_name]], spec),
+    simulated_states = sim$simulated_states,
+    label = model_name,
+    diagnostics = diagnostic_names,
+    metadata = list(
+      generation = "markov",
+      n_states = spec$n_states,
+      tpm_formula = deparse(spec$tpm_formula)
+    )
+  )
+})
+names(diagnoses) <- names(fits)
+
+comparison_table <- do.call(
+  rbind,
+  lapply(names(diagnoses), function(model_name) {
+    out <- summary(diagnoses[[model_name]])
+    out$model <- model_name
+    out
+  })
+)
+```
+
+## Comparing models
+
+The primary comparison is made on the same trajectory-level diagnostics for all
+models. State diagnostics are useful for multi-state models, but they are
+trivial for the one-state baseline.
+
+```{r comparison-table, eval = FALSE}
+global_comparison <- comparison_table[
+  is.na(comparison_table$state) &
+    comparison_table$diagnostic %in%
+      c("ud_wasserstein", "msd", "sinuosity"),
+  c("model", "diagnostic", "observed_statistic", "simulated_median", "p_value")
+]
+
+global_comparison
+```
+
+```{r comparison-plot, eval = FALSE}
+ggplot(
+  global_comparison,
+  aes(x = model, y = diagnostic, fill = p_value)
+) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sprintf("%.2f", p_value)), size = 3) +
+  scale_fill_gradient(
+    low = "#D55E00",
+    high = "#4C78A8",
+    limits = c(0, 1)
+  ) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1)) +
+  labs(
+    x = "Model",
+    y = "Diagnostic",
+    fill = "p-value",
+    title = "Zebra Markov-generative model comparison"
+  )
+```
+
+For each model, the full dashboard can also be drawn:
+
+```{r dashboards, eval = FALSE}
+plot(diagnoses[["M1_one_state"]], method = "M1_one_state")
+plot(diagnoses[["M2_two_state_fixed"]], method = "M2_two_state_fixed")
+plot(diagnoses[["M3_two_state_time"]], method = "M3_two_state_time")
+plot(diagnoses[["M4_three_state_fixed"]], method = "M4_three_state_fixed")
+```
+
+## Interpretation
+
+This workflow answers a targeted question:
+
+```text
+If every candidate model is simulated with its own Markov generative process,
+which model best reproduces the observed zebra trajectory diagnostics?
+```
+
+The comparison is not based on likelihood alone. It asks whether each fitted
+model can generate trajectories that reproduce emergent movement features such
+as space use, displacement over lag, and path straightness.
+
+For the one-state baseline, only trajectory-level diagnostics should be used
+for substantive interpretation. For the multi-state models, state occupancy,
+residence time, switching rate, transition counts, and state-conditioned
+movement diagnostics help identify why a model succeeds or fails.
+
+The two-state time-dependent model is expected to be the closest to the original
+zebra HMM-SSF specification because its transition probabilities vary with time
+of day. The fixed-transition models test whether this temporal transition
+structure is necessary for generative realism.

@@ -1,0 +1,10 @@
+pandoc: '3.9'
+pkgdown: 2.1.2
+pkgdown_sha: ~
+articles:
+  hmmssf-generative-validation: hmmssf-generative-validation.html
+  zebra-model-comparison: zebra-model-comparison.html
+last_built: 2026-06-09T14:57Z
+urls:
+  reference: https://aureliennicosiaulaval.github.io/HMMSSFGenerativeRepair/reference
+  article: https://aureliennicosiaulaval.github.io/HMMSSFGenerativeRepair/articles

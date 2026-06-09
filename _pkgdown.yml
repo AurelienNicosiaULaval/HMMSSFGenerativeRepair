@@ -1,0 +1,65 @@
+url: https://aureliennicosiaulaval.github.io/HMMSSFGenerativeRepair/
+
+template:
+  bootstrap: 5
+
+home:
+  title: HMMSSFGenerativeRepair
+  description: Generative validation diagnostics for HMM-SSF models.
+
+navbar:
+  structure:
+    left:
+      - home
+      - articles
+      - reference
+    right:
+      - search
+
+articles:
+  - title: Generative validation
+    navbar: Generative validation
+    contents:
+      - hmmssf-generative-validation
+      - zebra-model-comparison
+
+reference:
+  - title: Main workflow
+    contents:
+      - diagnose_hmmssf
+      - diagnose_hmmssf_simulations
+      - simulate_generative_hmmssf
+      - plot.gmov_hmmssf_diagnostics
+      - interpret_hmmssf_diagnostics
+      - compare_simulation_methods
+  - title: Simulation strategies
+    contents:
+      - simulate_markov_states
+      - simulate_viterbi_states
+      - simulate_viterbi_tube_states
+      - simulate_posterior_states
+      - simulate_posterior_states_from_components
+      - simulate_step_from_state
+  - title: Adapters
+    contents:
+      - as_gmov_hmmssf
+      - validate_hmmssf_adapter
+      - extract_hmmssf_parameters
+      - extract_initial_distribution
+      - extract_transition_probabilities
+      - extract_viterbi_path
+      - extract_state_likelihoods
+      - extract_state_specific_kernels
+  - title: Diagnostics
+    contents:
+      - diagnostic_state_occupancy
+      - diagnostic_state_residence_time
+      - diagnostic_switching_rate
+      - diagnostic_transition_counts
+      - compute_sharpness_scalar
+      - compute_sharpness_curve
+      - compute_sharpness_distribution
+      - classify_sharpness
+  - title: Example data
+    contents:
+      - example_hmmssf_list

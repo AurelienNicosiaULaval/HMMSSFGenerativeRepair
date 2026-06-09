@@ -1,0 +1,5 @@
+"model","label","n_states","tpm","generation","n_validate","n_sims","n_zeros","rmax","convergence","objective"
+"M1_one_state","M1 one-state SSF",1,"~1","markov",250,99,500,5,NA,21520.8082094201
+"M2_two_state_fixed","M2 two-state fixed TPM",2,"~1","markov",250,99,500,5,1,-25277.7963764242
+"M3_two_state_time","M3 two-state time TPM",2,"~cos(2 * pi * tod/24) + sin(2 * pi * tod/24)","markov",250,99,500,5,1,-25161.5333940955
+"M4_three_state_fixed","M4 three-state fixed TPM",3,"~1","markov",250,99,500,5,1,-25328.2592490942

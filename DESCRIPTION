@@ -1,0 +1,37 @@
+Package: HMMSSFGenerativeRepair
+Title: Generative Validation and Repair Diagnostics for HMM-SSF Models
+Version: 0.1.0
+Authors@R:
+    person(
+        given = "Aurelien",
+        family = "Nicosia",
+        role = c("aut", "cre"),
+        email = "116816597+AurelienNicosiaULaval@users.noreply.github.com"
+    )
+Description: Provides simulation, compatibility, sharpness, and interpretation
+    diagnostics for hidden Markov step-selection models. The package is a
+    development scaffold for extending gmov-style generative validation to
+    HMM-SSF and HMM-iSSA models while keeping latent-chain, state-kernel, and
+    state-decoding uncertainty diagnostics separate.
+URL: https://aureliennicosiaulaval.github.io/HMMSSFGenerativeRepair/
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Depends:
+    R (>= 4.1)
+Imports:
+    ggplot2,
+    grid,
+    stats
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    pkgdown,
+    survival
+Enhances:
+    gmov,
+    hmmSSF
+Config/testthat/edition: 3
+VignetteBuilder: knitr
