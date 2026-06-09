@@ -20,9 +20,23 @@ jobs:
         with:
           use-public-rspm: true
 
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: any::rcmdcheck
-          needs: check
+      - name: Install dependencies
+        shell: Rscript {0}
+        run: |
+          install.packages(c(
+            "rcmdcheck",
+            "ggplot2",
+            "testthat",
+            "knitr",
+            "rmarkdown",
+            "pkgdown",
+            "survival"
+          ))
 
-      - uses: r-lib/actions/check-r-package@v2
+      - name: Check package
+        shell: Rscript {0}
+        run: |
+          rcmdcheck::rcmdcheck(
+            args = "--no-manual",
+            error_on = "warning"
+          )
