@@ -4,7 +4,7 @@ pkgdown_sha: ~
 articles:
   hmmssf-generative-validation: hmmssf-generative-validation.html
   zebra-model-comparison: zebra-model-comparison.html
-last_built: 2026-06-09T14:57Z
+last_built: 2026-06-09T15:01Z
 urls:
-  reference: https://aureliennicosiaulaval.github.io/HMMSSFGenerativeRepair/reference
-  article: https://aureliennicosiaulaval.github.io/HMMSSFGenerativeRepair/articles
+  reference: https://github.com/AurelienNicosiaULaval/HMMSSFGenerativeRepair/reference
+  article: https://github.com/AurelienNicosiaULaval/HMMSSFGenerativeRepair/articles

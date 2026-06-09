@@ -13,7 +13,8 @@ Description: Provides simulation, compatibility, sharpness, and interpretation
     development scaffold for extending gmov-style generative validation to
     HMM-SSF and HMM-iSSA models while keeping latent-chain, state-kernel, and
     state-decoding uncertainty diagnostics separate.
-URL: https://aureliennicosiaulaval.github.io/HMMSSFGenerativeRepair/
+URL: https://github.com/AurelienNicosiaULaval/HMMSSFGenerativeRepair
+BugReports: https://github.com/AurelienNicosiaULaval/HMMSSFGenerativeRepair/issues
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
