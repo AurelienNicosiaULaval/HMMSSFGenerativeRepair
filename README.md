@@ -95,23 +95,41 @@ diagnostics.
 
 ## pkgdown site
 
-The package includes a minimal pkgdown configuration. To build the site locally:
+The package includes a minimal pkgdown configuration and a prebuilt site in
+`docs/`.
+
+GitHub does not render the package HTML files as a website automatically. From
+a local clone, open:
+
+```text
+docs/index.html
+docs/articles/hmmssf-generative-validation.html
+docs/articles/zebra-model-comparison.html
+```
+
+For example, from R:
+
+```r
+browseURL("docs/index.html")
+browseURL("docs/articles/zebra-model-comparison.html")
+```
+
+To rebuild the site locally:
 
 ```r
 pkgdown::build_site("HMMSSF_GenerativeRepair")
 ```
 
-The main article is:
+The source vignettes are also available in:
 
-```r
-vignette("hmmssf-generative-validation")
+```text
+vignettes/hmmssf-generative-validation.Rmd
+vignettes/zebra-model-comparison.Rmd
 ```
 
-The zebra model-comparison article is:
-
-```r
-vignette("zebra-model-comparison")
-```
+GitHub Pages can serve the `docs/` folder as a website, but it should only be
+enabled after confirming the intended site visibility for this private
+repository.
 
 ## Private GitHub setup
 
