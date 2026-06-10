@@ -177,6 +177,10 @@ mean absolute difference across all states
 Interpretation: a small p-value means the fitted generative process spends an
 unrealistic amount of time in one or more states.
 
+In a two-state model, the two per-state occupancy discrepancy values can be
+numerically identical because state proportions are complementary and the same
+absolute discrepancy is computed for each state.
+
 ### `state_residence_time`
 
 Purpose: compare how long the process remains in a state before switching.

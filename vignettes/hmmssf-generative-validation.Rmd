@@ -114,8 +114,9 @@ diagnosis$diagnostics[
 ]
 ```
 
-With `n_sims = 99`, the smallest possible Monte Carlo p-value is `0.01`, because
-the rank p-value uses the finite-simulation correction
+For this example, `n_sims = 9`, so the smallest possible Monte Carlo p-value is
+`0.1`. In a general run with `n_sims = N`, the smallest possible p-value is
+`1 / (N + 1)`, because the rank p-value uses the finite-simulation correction
 
 ```text
 (number of simulated statistics at least as extreme as observed + 1) /

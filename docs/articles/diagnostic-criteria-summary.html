@@ -59,14 +59,14 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Diagnostic criteria summary</h1>
-
-
+            
+      
       <small class="dont-index">Source: <a href="https://github.com/AurelienNicosiaULaval/HMMSSFGenerativeRepair/blob/HEAD/vignettes/diagnostic-criteria-summary.Rmd" class="external-link"><code>vignettes/diagnostic-criteria-summary.Rmd</code></a></small>
       <div class="d-none name"><code>diagnostic-criteria-summary.Rmd</code></div>
     </div>
 
-
-
+    
+    
 <p>This short note gives an executive explanation of the diagnostics
 used in the HMM-SSF generative validation workflow. The goal is not to
 replace the code documentation, but to make the output tables easier to
@@ -203,6 +203,9 @@ straight or unusually tortuous relative to simulated paths.</p>
 <pre class="text"><code>mean absolute difference across all states</code></pre>
 <p>Interpretation: a small p-value means the fitted generative process
 spends an unrealistic amount of time in one or more states.</p>
+<p>In a two-state model, the two per-state occupancy discrepancy values
+can be numerically identical because state proportions are complementary
+and the same absolute discrepancy is computed for each state.</p>
 </div>
 <div class="section level3">
 <h3 id="state_residence_time">

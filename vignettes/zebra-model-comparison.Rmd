@@ -51,6 +51,16 @@ The first model is not a genuine HMM transition model. It is the one-state SSF
 case: the latent state is always 1, so state diagnostics such as switching rate
 and transition counts are mathematically trivial.
 
+The quantities shown in both trajectory-level and state-level tables are discrepancy
+statistics. The "Observed" column is the discrepancy between each observed statistic
+and the model null reference, while simulated values are summaries of the same
+discrepancy under Markov simulation from each fitted model. Smaller discrepancies
+indicate closer agreement to the model.
+
+In the embedded run, Monte Carlo p-values are based on `n_sims = 99` simulations.
+The rank-test resolution is therefore `1 / (99 + 1) = 0.01`, so very small
+numeric differences in p-values should be interpreted with that grid in mind.
+
 ## Embedded results
 
 The tables and figures below are the embedded results from
@@ -207,10 +217,10 @@ knitr::kable(
   col.names = c(
     "Model",
     "Diagnostic",
-    "Observed",
-    "Simulated median",
-    "Simulated q025",
-    "Simulated q975",
+    "Observed discrepancy",
+    "Simulated discrepancy median",
+    "Simulated discrepancy q025",
+    "Simulated discrepancy q975",
     "Monte Carlo p-value"
   )
 )
@@ -245,13 +255,13 @@ observed_simulated <- rbind(
   data.frame(
     model_label = global_diagnostics$model_label,
     diagnostic_label = global_diagnostics$diagnostic_label,
-    source = "Observed",
+    source = "Observed discrepancy",
     value = global_diagnostics$observed_statistic
   ),
   data.frame(
     model_label = global_diagnostics$model_label,
     diagnostic_label = global_diagnostics$diagnostic_label,
-    source = "Simulated median",
+    source = "Simulated discrepancy median",
     value = global_diagnostics$simulated_median
   )
 )
@@ -273,10 +283,10 @@ ggplot(
   ) +
   labs(
     x = "Model",
-    y = "Statistic",
+    y = "Discrepancy",
     color = NULL,
     shape = NULL,
-    title = "Observed statistic and Markov-simulated median",
+    title = "Observed and simulated discrepancies",
     subtitle = "Each panel has its own y-axis scale"
   )
 ```
@@ -319,15 +329,27 @@ knitr::kable(
     "Model",
     "Diagnostic",
     "State",
-    "Observed",
-    "Simulated median",
+    "Observed discrepancy",
+    "Simulated discrepancy median",
     "Monte Carlo p-value",
     "Warning"
   )
 )
 ```
 
+For state diagnostics, the same interpretation rule applies: the reported numbers
+are discrepancy summaries. In two-state fits, state occupancy rows can be identical
+because the two occupancy proportions must sum to one and the same absolute
+discrepancy is reported per state. Step length and residence-time entries are based
+on full distributional distances, not raw mean step lengths or mean dwell times.
+Observed trajectories are state-decoded with Viterbi, while simulated trajectories
+use the simulated latent state sequence, so this is a comparison on different
+state-labelling views.
+
 In this embedded run, no candidate model reproduces every global diagnostic.
+A model can appear visually closer on one diagnostic and still have a lower Monte
+Carlo p-value if its simulated null is more concentrated for that statistic. This is
+why discrepancies and p-values should be read together.
 The UD Wasserstein p-values are not extreme, but MSD remains extreme for every
 model. The three-state fixed model gives the largest p-value for sinuosity in
 this run, while the two-state time-dependent model is closest to the original
@@ -835,3 +857,10 @@ The two-state time-dependent model is expected to be the closest to the original
 zebra HMM-SSF specification because its transition probabilities vary with time
 of day. The fixed-transition models test whether this temporal transition
 structure is necessary for generative realism.
+
+To assess memory effects in the regime process more directly, a direct HSMM
+extension can be a useful additional simulation study: simulate trajectories from
+an HSMM-SSF with non-geometric dwell times, fit a standard HMM-SSF, and check
+whether state-level residence-time discrepancies lose power when the memory
+structure is misspecified. This is a natural step for evaluating whether a
+non-geometric dwell-time model is required.

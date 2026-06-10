@@ -381,7 +381,7 @@ plot_state_occupancy_dashboard <- function(x) {
     ggplot2::geom_col(position = "dodge") +
     ggplot2::geom_point(ggplot2::aes(y = simulated_median), position = ggplot2::position_dodge(width = 0.9), color = "black") +
     ggplot2::theme_bw() +
-    ggplot2::labs(x = "State", y = "Occupancy proportion", fill = "Method")
+    ggplot2::labs(x = "State", y = "Occupancy discrepancy", fill = "Method")
 }
 
 plot_residence_time_dashboard <- function(x) {
