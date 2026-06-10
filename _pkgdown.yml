@@ -21,6 +21,7 @@ articles:
     navbar: Generative validation
     contents:
       - hmmssf-generative-validation
+      - diagnostic-criteria-summary
       - zebra-model-comparison
 
 reference:
