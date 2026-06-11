@@ -44,6 +44,7 @@ multi-start fitting strategy: all six stored starting-value sets are fitted,
 then the fit with the lowest negative log-likelihood is retained.
 
 ```r
+ssf_formula <- ~ step + log(step) + cos(angle) + veg
 tpm_formula <- ~ cos(2 * pi * tod / 24) + sin(2 * pi * tod / 24)
 ```
 
@@ -104,6 +105,28 @@ diagnostics <- utils::read.csv(
   find_zebra_result("zebra_model_comparison_diagnostics.csv"),
   stringsAsFactors = FALSE
 )
+
+add_discrepancy_aliases <- function(x) {
+  if (!"observed_discrepancy" %in% names(x) && "observed_statistic" %in% names(x)) {
+    x$observed_discrepancy <- x$observed_statistic
+  }
+  if (!"simulated_discrepancy_median" %in% names(x) && "simulated_median" %in% names(x)) {
+    x$simulated_discrepancy_median <- x$simulated_median
+  }
+  if (!"simulated_discrepancy_q025" %in% names(x) && "simulated_q025" %in% names(x)) {
+    x$simulated_discrepancy_q025 <- x$simulated_q025
+  }
+  if (!"simulated_discrepancy_q975" %in% names(x) && "simulated_q975" %in% names(x)) {
+    x$simulated_discrepancy_q975 <- x$simulated_q975
+  }
+  if (!"mc_p_value" %in% names(x) && "p_value" %in% names(x)) {
+    x$mc_p_value <- x$p_value
+  }
+  x
+}
+
+global_diagnostics <- add_discrepancy_aliases(global_diagnostics)
+diagnostics <- add_discrepancy_aliases(diagnostics)
 
 for (column in c("fit_strategy", "n_starts", "selected_start")) {
   if (!column %in% names(model_summary)) {
@@ -203,11 +226,11 @@ global_display <- global_diagnostics[
   c(
     "model_label",
     "diagnostic_label",
-    "observed_statistic",
-    "simulated_median",
-    "simulated_q025",
-    "simulated_q975",
-    "p_value"
+    "observed_discrepancy",
+    "simulated_discrepancy_median",
+    "simulated_discrepancy_q025",
+    "simulated_discrepancy_q975",
+    "mc_p_value"
   )
 ]
 
@@ -256,13 +279,13 @@ observed_simulated <- rbind(
     model_label = global_diagnostics$model_label,
     diagnostic_label = global_diagnostics$diagnostic_label,
     source = "Observed discrepancy",
-    value = global_diagnostics$observed_statistic
+    value = global_diagnostics$observed_discrepancy
   ),
   data.frame(
     model_label = global_diagnostics$model_label,
     diagnostic_label = global_diagnostics$diagnostic_label,
     source = "Simulated discrepancy median",
-    value = global_diagnostics$simulated_median
+    value = global_diagnostics$simulated_discrepancy_median
   )
 )
 
@@ -315,9 +338,9 @@ selected_state_display <- selected_state_diagnostics[
     "model_label",
     "diagnostic_label",
     "state",
-    "observed_statistic",
-    "simulated_median",
-    "p_value",
+    "observed_discrepancy",
+    "simulated_discrepancy_median",
+    "mc_p_value",
     "warning"
   )
 ]

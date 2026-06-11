@@ -27,6 +27,7 @@ single global goodness-of-fit score."></head><body>
     <li><h6 class="dropdown-header" data-toc-skip>Generative validation</h6></li>
     <li><a class="dropdown-item" href="../articles/hmmssf-generative-validation.html">Generative validation for HMM-SSF models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostic-criteria-summary.html">Diagnostic criteria summary</a></li>
+    <li><a class="dropdown-item" href="../articles/hsmm-ssf-memory-diagnostic.html">HSMM-SSF residence-time stress test</a></li>
     <li><a class="dropdown-item" href="../articles/zebra-model-comparison.html">Zebra model comparison with Markov generation</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
@@ -60,9 +61,10 @@ single global goodness-of-fit score.</p>
 <span>  n_sims <span class="op">=</span> <span class="fl">99</span>,</span>
 <span>  methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"markov"</span>, <span class="st">"viterbi"</span>, <span class="st">"viterbi_tube"</span>, <span class="st">"posterior"</span><span class="op">)</span>,</span>
 <span>  diagnostics <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ud_wasserstein"</span>, <span class="st">"msd"</span>, <span class="st">"sinuosity"</span>, <span class="st">"barrier_crossing"</span>,</span>
-<span>    <span class="st">"state_occupancy"</span>, <span class="st">"state_residence_time"</span>, <span class="st">"switching_rate"</span>, <span class="st">"transition_counts"</span>,</span>
-<span>    <span class="st">"state_conditioned_msd"</span>, <span class="st">"state_conditioned_step_length"</span>,</span>
-<span>    <span class="st">"state_conditioned_turning_angle"</span>, <span class="st">"state_conditioned_ud"</span>, <span class="st">"habitat_use_by_state"</span><span class="op">)</span>,</span>
+<span>    <span class="st">"state_occupancy"</span>, <span class="st">"state_residence_time"</span>, <span class="st">"state_residence_geometric"</span>,</span>
+<span>    <span class="st">"switching_rate"</span>, <span class="st">"transition_counts"</span>, <span class="st">"state_conditioned_msd"</span>,</span>
+<span>    <span class="st">"state_conditioned_step_length"</span>, <span class="st">"state_conditioned_turning_angle"</span>,</span>
+<span>    <span class="st">"state_conditioned_ud"</span>, <span class="st">"habitat_use_by_state"</span><span class="op">)</span>,</span>
 <span>  sharpness <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  parameter_uncertainty <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  epsilon <span class="op">=</span> <span class="cn">NULL</span>,</span>

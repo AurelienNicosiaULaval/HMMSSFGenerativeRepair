@@ -68,6 +68,18 @@ The main outputs are:
 - `p_value`: Monte Carlo p-value.
 - `interpretation_label`: compact diagnostic label.
 
+For clarity, the diagnostic table also includes explicit aliases:
+
+- `observed_discrepancy`
+- `simulated_discrepancy_median`
+- `simulated_discrepancy_q025`
+- `simulated_discrepancy_q975`
+- `mc_p_value`
+- `mc_p_value_resolution`
+
+State diagnostics include a `state_reference` note because empirical state
+paths are usually decoded, while simulated state paths are generated or supplied.
+
 ## Four simulation strategies
 
 `diagnose_hmmssf()` can use one or several simulation strategies:
@@ -104,6 +116,8 @@ a local clone, open:
 ```text
 docs/index.html
 docs/articles/hmmssf-generative-validation.html
+docs/articles/diagnostic-criteria-summary.html
+docs/articles/hsmm-ssf-memory-diagnostic.html
 docs/articles/zebra-model-comparison.html
 ```
 
@@ -124,6 +138,8 @@ The source vignettes are also available in:
 
 ```text
 vignettes/hmmssf-generative-validation.Rmd
+vignettes/diagnostic-criteria-summary.Rmd
+vignettes/hsmm-ssf-memory-diagnostic.Rmd
 vignettes/zebra-model-comparison.Rmd
 ```
 

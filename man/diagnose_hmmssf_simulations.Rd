@@ -9,11 +9,13 @@ diagnose_hmmssf_simulations(
   simulated_tracks,
   observed_states = NULL,
   simulated_states = NULL,
+  reference_transition = NULL,
   label = "simulation",
   diagnostics = c("ud_wasserstein", "msd", "sinuosity", "barrier_crossing",
-    "state_occupancy", "state_residence_time", "switching_rate", "transition_counts",
-    "state_conditioned_msd", "state_conditioned_step_length",
-    "state_conditioned_turning_angle", "state_conditioned_ud", "habitat_use_by_state"),
+    "state_occupancy", "state_residence_time", "state_residence_geometric",
+    "switching_rate", "transition_counts", "state_conditioned_msd",
+    "state_conditioned_step_length", "state_conditioned_turning_angle",
+    "state_conditioned_ud", "habitat_use_by_state"),
   barriers = NULL,
   metadata = list(),
   warnings = character()
@@ -27,6 +29,9 @@ diagnose_hmmssf_simulations(
 \item{observed_states}{Optional observed or decoded state path.}
 
 \item{simulated_states}{Optional matrix of simulated state paths.}
+
+\item{reference_transition}{Optional homogeneous transition matrix used by
+\code{state_residence_geometric}.}
 
 \item{label}{Label used for the simulation source in plots and tables.}
 

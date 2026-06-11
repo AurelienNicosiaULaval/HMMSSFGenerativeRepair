@@ -196,6 +196,7 @@ plot_state_diagnostic_panel <- function(diagnostics, method) {
   keep <- diagnostics$method == method &
     diagnostics$diagnostic %in% c(
       "state_residence_time",
+      "state_residence_geometric",
       "switching_rate",
       "transition_counts",
       "state_conditioned_step_length",

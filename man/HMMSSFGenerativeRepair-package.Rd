@@ -11,7 +11,9 @@ Development scaffold for HMM-SSF generative validation.
 \seealso{
 Useful links:
 \itemize{
+  \item \url{https://github.com/AurelienNicosiaULaval/HMMSSFGenerativeRepair}
   \item \url{https://aureliennicosiaulaval.github.io/HMMSSFGenerativeRepair/}
+  \item Report bugs at \url{https://github.com/AurelienNicosiaULaval/HMMSSFGenerativeRepair/issues}
 }
 
 }

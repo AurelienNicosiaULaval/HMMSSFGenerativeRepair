@@ -38,6 +38,7 @@
     <li><h6 class="dropdown-header" data-toc-skip>Generative validation</h6></li>
     <li><a class="dropdown-item" href="articles/hmmssf-generative-validation.html">Generative validation for HMM-SSF models</a></li>
     <li><a class="dropdown-item" href="articles/diagnostic-criteria-summary.html">Diagnostic criteria summary</a></li>
+    <li><a class="dropdown-item" href="articles/hsmm-ssf-memory-diagnostic.html">HSMM-SSF residence-time stress test</a></li>
     <li><a class="dropdown-item" href="articles/zebra-model-comparison.html">Zebra model comparison with Markov generation</a></li>
   </ul>
 </li>
@@ -116,6 +117,16 @@
 <li>
 <code>interpretation_label</code>: compact diagnostic label.</li>
 </ul>
+<p>For clarity, the diagnostic table also includes explicit aliases:</p>
+<ul>
+<li><code>observed_discrepancy</code></li>
+<li><code>simulated_discrepancy_median</code></li>
+<li><code>simulated_discrepancy_q025</code></li>
+<li><code>simulated_discrepancy_q975</code></li>
+<li><code>mc_p_value</code></li>
+<li><code>mc_p_value_resolution</code></li>
+</ul>
+<p>State diagnostics include a <code>state_reference</code> note because empirical state paths are usually decoded, while simulated state paths are generated or supplied.</p>
 </div>
 <div class="section level2">
 <h2 id="four-simulation-strategies">Four simulation strategies<a class="anchor" aria-label="anchor" href="#four-simulation-strategies"></a>
@@ -167,6 +178,8 @@
 <p>GitHub does not render the package HTML files as a website automatically. From a local clone, open:</p>
 <pre class="text"><code><span><span class="va">docs</span><span class="op">/</span><span class="va">index.html</span></span>
 <span><span class="va">docs</span><span class="op">/</span><span class="va">articles</span><span class="op">/</span><span class="va">hmmssf</span><span class="op">-</span><span class="va">generative</span><span class="op">-</span><span class="va">validation.html</span></span>
+<span><span class="va">docs</span><span class="op">/</span><span class="va">articles</span><span class="op">/</span><span class="va">diagnostic</span><span class="op">-</span><span class="va">criteria</span><span class="op">-</span><span class="va">summary.html</span></span>
+<span><span class="va">docs</span><span class="op">/</span><span class="va">articles</span><span class="op">/</span><span class="va">hsmm</span><span class="op">-</span><span class="va">ssf</span><span class="op">-</span><span class="va">memory</span><span class="op">-</span><span class="va">diagnostic.html</span></span>
 <span><span class="va">docs</span><span class="op">/</span><span class="va">articles</span><span class="op">/</span><span class="va">zebra</span><span class="op">-</span><span class="va">model</span><span class="op">-</span><span class="va">comparison.html</span></span></code></pre>
 <p>For example, from R:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
@@ -177,6 +190,8 @@
 <code class="sourceCode R"><span><span class="fu">pkgdown</span><span class="fu">::</span><span class="fu"><a href="https://pkgdown.r-lib.org/reference/build_site.html" class="external-link">build_site</a></span><span class="op">(</span><span class="st">"HMMSSF_GenerativeRepair"</span><span class="op">)</span></span></code></pre></div>
 <p>The source vignettes are also available in:</p>
 <pre class="text"><code><span><span class="va">vignettes</span><span class="op">/</span><span class="va">hmmssf</span><span class="op">-</span><span class="va">generative</span><span class="op">-</span><span class="va">validation.Rmd</span></span>
+<span><span class="va">vignettes</span><span class="op">/</span><span class="va">diagnostic</span><span class="op">-</span><span class="va">criteria</span><span class="op">-</span><span class="va">summary.Rmd</span></span>
+<span><span class="va">vignettes</span><span class="op">/</span><span class="va">hsmm</span><span class="op">-</span><span class="va">ssf</span><span class="op">-</span><span class="va">memory</span><span class="op">-</span><span class="va">diagnostic.Rmd</span></span>
 <span><span class="va">vignettes</span><span class="op">/</span><span class="va">zebra</span><span class="op">-</span><span class="va">model</span><span class="op">-</span><span class="va">comparison.Rmd</span></span></code></pre>
 <p>GitHub Pages can serve the <code>docs/</code> folder as a website, but it should only be enabled after confirming the intended site visibility for this private repository.</p>
 </div>

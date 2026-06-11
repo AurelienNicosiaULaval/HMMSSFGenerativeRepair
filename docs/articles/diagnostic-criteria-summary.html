@@ -36,6 +36,7 @@
     <li><h6 class="dropdown-header" data-toc-skip>Generative validation</h6></li>
     <li><a class="dropdown-item" href="../articles/hmmssf-generative-validation.html">Generative validation for HMM-SSF models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostic-criteria-summary.html">Diagnostic criteria summary</a></li>
+    <li><a class="dropdown-item" href="../articles/hsmm-ssf-memory-diagnostic.html">HSMM-SSF residence-time stress test</a></li>
     <li><a class="dropdown-item" href="../articles/zebra-model-comparison.html">Zebra model comparison with Markov generation</a></li>
   </ul>
 </li>
@@ -91,6 +92,52 @@ Carlo p-value is computed as</p>
 <p>With 99 simulations, the smallest possible p-value is therefore 0.01.
 A small p-value means that the observed trajectory is more discrepant
 than expected from simulation-to-simulation variability.</p>
+<p>The diagnostic table keeps the original column names
+<code>observed_statistic</code>, <code>simulated_median</code>,
+<code>simulated_q025</code>, and <code>simulated_q975</code> for
+backward compatibility. It also provides explicit aliases:</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th>Column</th>
+<th>Meaning</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>observed_discrepancy</code></td>
+<td>Discrepancy computed from the observed trajectory or decoded state
+path.</td>
+</tr>
+<tr class="even">
+<td><code>simulated_discrepancy_median</code></td>
+<td>Median discrepancy under the fitted-model simulation reference.</td>
+</tr>
+<tr class="odd">
+<td><code>simulated_discrepancy_q025</code></td>
+<td>Lower simulation-reference quantile.</td>
+</tr>
+<tr class="even">
+<td><code>simulated_discrepancy_q975</code></td>
+<td>Upper simulation-reference quantile.</td>
+</tr>
+<tr class="odd">
+<td><code>mc_p_value</code></td>
+<td>Same value as <code>p_value</code>, named to emphasize the Monte
+Carlo rank test.</td>
+</tr>
+<tr class="even">
+<td><code>mc_p_value_resolution</code></td>
+<td>Smallest possible p-value step, equal to
+<code>1 / (n_effective + 1)</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>The p-value is therefore not a direct ranking of visual distances
+across candidate models. It depends on both the observed discrepancy and
+the spread of the model-specific simulated reference distribution.</p>
 <p>The <code>sharpness_label</code> is secondary. It describes how
 concentrated or diffuse the simulated reference distribution is. The
 main compatibility statement comes from the Monte Carlo p-value.</p>
@@ -132,6 +179,11 @@ main compatibility statement comes from the Monte Carlo p-value.</p>
 <p>The state diagnostics are only meaningful when
 <code>observed_states</code> and <code>simulated_states</code> are
 supplied.</p>
+<p>For empirical applications, <code>observed_states</code> are usually
+decoded states rather than directly observed states. The package records
+this distinction in <code>state_reference</code>: state diagnostics
+compare decoded or supplied observed state paths with generated or
+supplied simulated state paths.</p>
 </div>
 <div class="section level2">
 <h2 id="global-trajectory-diagnostics">Global trajectory diagnostics<a class="anchor" aria-label="anchor" href="#global-trajectory-diagnostics"></a>
@@ -201,8 +253,8 @@ straight or unusually tortuous relative to simulated paths.</p>
 <p>The package also reports
 <code>state_occupancy_total_variation</code>:</p>
 <pre class="text"><code>mean absolute difference across all states</code></pre>
-<p>Interpretation: a small p-value means the fitted generative process
-spends an unrealistic amount of time in one or more states.</p>
+<p>This global occupancy discrepancy is usually the preferred summary in
+main tables. Per-state rows remain useful for diagnosis.</p>
 <p>In a two-state model, the two per-state occupancy discrepancy values
 can be numerically identical because state proportions are complementary
 and the same absolute discrepancy is computed for each state.</p>
@@ -223,6 +275,32 @@ each simulated residence-time distribution</code></pre>
 <pre class="text"><code>leave-one-out Wasserstein distances among simulated residence-time distributions</code></pre>
 <p>Interpretation: a small p-value means the observed state persistence
 is unusual relative to the fitted transition dynamics.</p>
+</div>
+<div class="section level3">
+<h3 id="state_residence_geometric">
+<code>state_residence_geometric</code><a class="anchor" aria-label="anchor" href="#state_residence_geometric"></a>
+</h3>
+<p>Purpose: test the homogeneous-HMM dwell-time assumption more
+directly.</p>
+<p>For a homogeneous HMM with transition matrix <code>Gamma</code>, the
+dwell time in state <code>s</code> follows a geometric distribution with
+leaving probability</p>
+<pre class="text"><code><span><span class="fl">1</span> <span class="op">-</span> <span class="va">Gamma</span><span class="op">[</span><span class="va">s</span>, <span class="va">s</span><span class="op">]</span></span></code></pre>
+<p>The package uses a parametric-bootstrap reference from this geometric
+distribution and compares it with the observed or decoded residence-time
+distribution by state.</p>
+<p>Observed statistic:</p>
+<pre class="text"><code>mean Wasserstein distance between decoded residence times and geometric
+bootstrap residence-time samples</code></pre>
+<p>Simulated reference:</p>
+<pre class="text"><code>leave-one-out Wasserstein distances among geometric bootstrap samples</code></pre>
+<p>Interpretation: a small p-value means the decoded residence-time
+distribution is unusual under the geometric dwell-time distribution
+implied by a homogeneous HMM. This is evidence of a residence-time
+mismatch, not definitive proof that the true process is semi-Markov.</p>
+<p>This diagnostic is only defined for homogeneous transition matrices.
+For time-varying transition probabilities, use
+<code>state_residence_time</code> with model-generated simulations.</p>
 </div>
 <div class="section level3">
 <h3 id="switching_rate">

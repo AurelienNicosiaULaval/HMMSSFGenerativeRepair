@@ -22,6 +22,7 @@ articles:
     contents:
       - hmmssf-generative-validation
       - diagnostic-criteria-summary
+      - hsmm-ssf-memory-diagnostic
       - zebra-model-comparison
 
 reference:
@@ -55,6 +56,7 @@ reference:
     contents:
       - diagnostic_state_occupancy
       - diagnostic_state_residence_time
+      - diagnostic_state_residence_geometric
       - diagnostic_switching_rate
       - diagnostic_transition_counts
       - compute_sharpness_scalar

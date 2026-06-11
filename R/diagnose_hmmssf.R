@@ -32,6 +32,7 @@ diagnose_hmmssf <- function(
     "barrier_crossing",
     "state_occupancy",
     "state_residence_time",
+    "state_residence_geometric",
     "switching_rate",
     "transition_counts",
     "state_conditioned_msd",
@@ -78,7 +79,8 @@ diagnose_hmmssf <- function(
       sim_i = sim_i,
       observed_states = observed_states,
       diagnostics = diagnostics,
-      barriers = barriers
+      barriers = barriers,
+      transition = components$transition
     )
     tab_i$method <- method_i
     diagnostic_tables[[method_i]] <- tab_i
@@ -111,6 +113,8 @@ diagnose_hmmssf <- function(
 #' @param simulated_tracks List of simulated tracks.
 #' @param observed_states Optional observed or decoded state path.
 #' @param simulated_states Optional matrix of simulated state paths.
+#' @param reference_transition Optional homogeneous transition matrix used by
+#'   `state_residence_geometric`.
 #' @param label Label used for the simulation source in plots and tables.
 #' @param diagnostics Diagnostic names.
 #' @param barriers Optional barriers for future barrier diagnostics.
@@ -124,6 +128,7 @@ diagnose_hmmssf_simulations <- function(
   simulated_tracks,
   observed_states = NULL,
   simulated_states = NULL,
+  reference_transition = NULL,
   label = "simulation",
   diagnostics = c(
     "ud_wasserstein",
@@ -132,6 +137,7 @@ diagnose_hmmssf_simulations <- function(
     "barrier_crossing",
     "state_occupancy",
     "state_residence_time",
+    "state_residence_geometric",
     "switching_rate",
     "transition_counts",
     "state_conditioned_msd",
@@ -151,17 +157,7 @@ diagnose_hmmssf_simulations <- function(
   simulated_tracks <- lapply(simulated_tracks, as_track_df)
   names(simulated_tracks) <- names(simulated_tracks) %||% paste0("sim_", seq_along(simulated_tracks))
 
-  state_diagnostics <- c(
-    "state_occupancy",
-    "state_residence_time",
-    "switching_rate",
-    "transition_counts",
-    "state_conditioned_msd",
-    "state_conditioned_step_length",
-    "state_conditioned_turning_angle",
-    "state_conditioned_ud",
-    "habitat_use_by_state"
-  )
+  state_diagnostics <- state_diagnostic_names()
   diagnostics <- unique(diagnostics)
   requested_state_diagnostics <- intersect(diagnostics, state_diagnostics)
 
@@ -212,7 +208,8 @@ diagnose_hmmssf_simulations <- function(
     sim_i = sim_object,
     observed_states = observed_states,
     diagnostics = diagnostics,
-    barriers = barriers
+    barriers = barriers,
+    transition = reference_transition
   )
   table$method <- label
   table <- interpret_hmmssf_diagnostics(table)
@@ -237,7 +234,7 @@ diagnose_hmmssf_simulations <- function(
   out
 }
 
-compute_diagnostics_for_simulation <- function(sim_i, observed_states, diagnostics, barriers = NULL) {
+compute_diagnostics_for_simulation <- function(sim_i, observed_states, diagnostics, barriers = NULL, transition = NULL) {
   rows <- list()
   observed_track <- sim_i$observed_track
   simulated_tracks <- sim_i$simulated_tracks
@@ -263,6 +260,24 @@ compute_diagnostics_for_simulation <- function(sim_i, observed_states, diagnosti
   if ("state_residence_time" %in% diagnostics) {
     rows[[length(rows) + 1L]] <- diagnostic_state_residence_time(observed_states, simulated_states)
   }
+  if ("state_residence_geometric" %in% diagnostics) {
+    if (is.matrix(transition)) {
+      rows[[length(rows) + 1L]] <- diagnostic_state_residence_geometric(
+        observed_states = observed_states,
+        transition = transition,
+        n_sims = nrow(simulated_states)
+      )
+    } else {
+      rows[[length(rows) + 1L]] <- diagnostic_row(
+        "state_residence_geometric",
+        NA,
+        NA_real_,
+        numeric(),
+        list(value = NA_real_),
+        warning = "Geometric residence-time diagnostics require a homogeneous transition matrix."
+      )
+    }
+  }
   if ("switching_rate" %in% diagnostics) {
     rows[[length(rows) + 1L]] <- diagnostic_switching_rate(observed_states, simulated_states)
   }
@@ -284,7 +299,28 @@ compute_diagnostics_for_simulation <- function(sim_i, observed_states, diagnosti
   if ("habitat_use_by_state" %in% diagnostics) {
     rows[[length(rows) + 1L]] <- diagnostic_row("habitat_use_by_state", NA, NA_real_, numeric(), list(value = NA_real_), warning = "Habitat-use diagnostics require state-specific covariates; not available in this run.")
   }
-  do.call(rbind, rows)
+  annotate_state_diagnostic_context(do.call(rbind, rows))
+}
+
+state_diagnostic_names <- function() {
+  c(
+    "state_occupancy",
+    "state_residence_time",
+    "state_residence_geometric",
+    "switching_rate",
+    "transition_counts",
+    "state_conditioned_msd",
+    "state_conditioned_step_length",
+    "state_conditioned_turning_angle",
+    "state_conditioned_ud",
+    "habitat_use_by_state"
+  )
+}
+
+annotate_state_diagnostic_context <- function(table) {
+  is_state_diagnostic <- table$diagnostic %in% state_diagnostic_names()
+  table$state_reference[is_state_diagnostic] <- state_reference_note()
+  table
 }
 
 global_ud_diagnostic <- function(observed_track, simulated_tracks) {

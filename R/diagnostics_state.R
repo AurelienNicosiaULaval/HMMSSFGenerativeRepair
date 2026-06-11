@@ -34,7 +34,9 @@ diagnostic_state_occupancy <- function(observed_states, simulated_states) {
     mean(abs(sim[i, ] - colMeans(sim[-i, , drop = FALSE], na.rm = TRUE)))
   }, numeric(1L))
   rows[[n_states + 1L]] <- diagnostic_row("state_occupancy_total_variation", NA, tv_obs, tv_sim, compute_sharpness_scalar(tv_sim), "greater")
-  do.call(rbind, rows)
+  out <- do.call(rbind, rows)
+  out$state_reference <- state_reference_note()
+  out
 }
 
 #' Compute residence-time diagnostics
@@ -59,7 +61,89 @@ diagnostic_state_residence_time <- function(observed_states, simulated_states) {
     warn <- if (length(obs_s) < 3L) "Too few observed residence bouts; low power." else ""
     rows[[s]] <- diagnostic_row("state_residence_time", s, comparison$observed, comparison$simulated, compute_sharpness_scalar(comparison$simulated), "greater", warning = warn)
   }
-  do.call(rbind, rows)
+  out <- do.call(rbind, rows)
+  out$state_reference <- state_reference_note()
+  out
+}
+
+#' Compute geometric residence-time diagnostics
+#'
+#' This diagnostic compares decoded or supplied residence times with the
+#' geometric dwell-time distribution implied by a homogeneous HMM transition
+#' matrix. It is intended as a targeted check of the Markov residence-time
+#' assumption, not as proof that decoded states are true states.
+#'
+#' @param observed_states Observed or decoded state path.
+#' @param transition Homogeneous transition matrix.
+#' @param n_sims Number of parametric-bootstrap samples.
+#' @param seed Optional random seed.
+#'
+#' @return Diagnostic rows by state.
+#' @export
+diagnostic_state_residence_geometric <- function(observed_states, transition, n_sims = 999, seed = NULL) {
+  if (!is.null(seed)) {
+    set.seed(seed)
+  }
+  transition <- check_transition_matrix(transition, "transition")
+  n_states <- nrow(transition)
+  observed_states <- as.integer(observed_states)
+  obs_runs <- run_lengths_by_state(observed_states)
+  rows <- vector("list", n_states)
+
+  for (s in seq_len(n_states)) {
+    obs_s <- obs_runs$run_length[obs_runs$state == s]
+    warning <- character()
+    if (length(obs_s) == 0L) {
+      rows[[s]] <- diagnostic_row(
+        "state_residence_geometric",
+        s,
+        NA_real_,
+        numeric(),
+        list(value = NA_real_),
+        "greater",
+        warning = "No observed residence bouts for this state."
+      )
+      next
+    }
+    if (length(obs_s) < 3L) {
+      warning <- c(warning, "Too few observed residence bouts; low power.")
+    }
+
+    leave_prob <- 1 - transition[s, s]
+    if (!is.finite(leave_prob) || leave_prob <= .Machine$double.eps) {
+      rows[[s]] <- diagnostic_row(
+        "state_residence_geometric",
+        s,
+        NA_real_,
+        numeric(),
+        list(value = NA_real_),
+        "greater",
+        warning = paste(
+          c(warning, "Self-transition probability is too close to one; geometric bootstrap is undefined."),
+          collapse = " "
+        )
+      )
+      next
+    }
+
+    sim_s <- lapply(seq_len(as.integer(n_sims)), function(i) {
+      stats::rgeom(length(obs_s), prob = leave_prob) + 1L
+    })
+    comparison <- distribution_leave_one_out(obs_s, sim_s)
+    rows[[s]] <- diagnostic_row(
+      "state_residence_geometric",
+      s,
+      comparison$observed,
+      comparison$simulated,
+      compute_sharpness_scalar(comparison$simulated),
+      "greater",
+      warning = paste(warning, collapse = " ")
+    )
+  }
+
+  out <- do.call(rbind, rows)
+  out$state_reference <- state_reference_note()
+  out
 }
 
 #' Compute switching-rate diagnostics
@@ -207,6 +291,8 @@ diagnostic_row <- function(diagnostic, state, observed, simulated, sharpness, al
   med <- if (length(simulated) == 0L) NA_real_ else stats::median(simulated)
   qs <- if (length(simulated) == 0L) c(NA_real_, NA_real_) else stats::quantile(simulated, c(0.025, 0.975), names = FALSE, type = 8)
   sharp_value <- sharpness$value %||% NA_real_
+  p_value <- mc_rank_p_value(observed, simulated, alternative = alternative)
+  p_resolution <- if (length(simulated) == 0L) NA_real_ else 1 / (length(simulated) + 1)
   data.frame(
     method = NA_character_,
     diagnostic = diagnostic,
@@ -215,7 +301,15 @@ diagnostic_row <- function(diagnostic, state, observed, simulated, sharpness, al
     simulated_median = med,
     simulated_q025 = qs[1L],
     simulated_q975 = qs[2L],
-    p_value = mc_rank_p_value(observed, simulated, alternative = alternative),
+    observed_discrepancy = observed,
+    simulated_discrepancy_median = med,
+    simulated_discrepancy_q025 = qs[1L],
+    simulated_discrepancy_q975 = qs[2L],
+    p_value = p_value,
+    mc_p_value = p_value,
+    mc_p_value_resolution = p_resolution,
+    statistic_type = "discrepancy",
+    state_reference = NA_character_,
     sharpness_value = sharp_value,
     sharpness_label = classify_sharpness(sharp_value),
     interpretation_label = NA_character_,
@@ -223,5 +317,12 @@ diagnostic_row <- function(diagnostic, state, observed, simulated, sharpness, al
     n_effective = length(simulated),
     warning = warning,
     stringsAsFactors = FALSE
+  )
+}
+
+state_reference_note <- function() {
+  paste(
+    "Observed states are decoded or supplied;",
+    "simulated states are generated latent paths or supplied state paths."
   )
 }

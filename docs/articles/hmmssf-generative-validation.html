@@ -36,6 +36,7 @@
     <li><h6 class="dropdown-header" data-toc-skip>Generative validation</h6></li>
     <li><a class="dropdown-item" href="../articles/hmmssf-generative-validation.html">Generative validation for HMM-SSF models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostic-criteria-summary.html">Diagnostic criteria summary</a></li>
+    <li><a class="dropdown-item" href="../articles/hsmm-ssf-memory-diagnostic.html">HSMM-SSF residence-time stress test</a></li>
     <li><a class="dropdown-item" href="../articles/zebra-model-comparison.html">Zebra model comparison with Markov generation</a></li>
   </ul>
 </li>
@@ -136,6 +137,13 @@ kernels.</p>
 <span></span>
 <span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/example_hmmssf_list.html">example_hmmssf_list</a></span><span class="op">(</span>n <span class="op">=</span> <span class="fl">50</span>, seed <span class="op">=</span> <span class="fl">123</span><span class="op">)</span></span>
 <span><span class="va">observed_track</span> <span class="op">&lt;-</span> <span class="va">fit</span><span class="op">$</span><span class="va">observed_track</span></span></code></pre></div>
+<p>The toy object has two states, a homogeneous transition matrix, and
+state-specific movement kernels. It has no habitat-selection covariate;
+the movement component is defined directly by the state-specific
+step-length and turning-angle distributions. In empirical HMM-SSF
+applications, the analogous model summary should report the SSF formula,
+the transition-probability formula, the number of available steps, and
+the state-decoding method.</p>
 <p>The call below runs all four simulation strategies and computes a
 small set of trajectory-level and state-aware diagnostics.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
@@ -150,6 +158,7 @@ small set of trajectory-level and state-aware diagnostics.</p>
 <span>    <span class="st">"sinuosity"</span>,</span>
 <span>    <span class="st">"state_occupancy"</span>,</span>
 <span>    <span class="st">"state_residence_time"</span>,</span>
+<span>    <span class="st">"state_residence_geometric"</span>,</span>
 <span>    <span class="st">"switching_rate"</span>,</span>
 <span>    <span class="st">"transition_counts"</span>,</span>
 <span>    <span class="st">"state_conditioned_step_length"</span>,</span>
@@ -169,20 +178,55 @@ small set of trajectory-level and state-aware diagnostics.</p>
 <span><span class="co">#&gt; 4 markov                 state_occupancy     1       7.111111e-02</span></span>
 <span><span class="co">#&gt; 5 markov                 state_occupancy     2       7.111111e-02</span></span>
 <span><span class="co">#&gt; 6 markov state_occupancy_total_variation    NA       7.111111e-02</span></span>
-<span><span class="co">#&gt;   simulated_median simulated_q025 simulated_q975 p_value sharpness_value</span></span>
-<span><span class="co">#&gt; 1     4.477693e+01   3.864234e+01   8.435955e+01     1.0        1.020999</span></span>
-<span><span class="co">#&gt; 2     1.074852e+08   1.290036e+07   1.258699e+09     0.7        8.776384</span></span>
-<span><span class="co">#&gt; 3     2.223835e-01   5.437808e-02   3.919304e-01     0.4        1.291545</span></span>
-<span><span class="co">#&gt; 4     1.475000e-01   3.500000e-02   4.600000e-01     0.8        1.181818</span></span>
-<span><span class="co">#&gt; 5     1.475000e-01   3.500000e-02   4.600000e-01     0.8        2.294118</span></span>
-<span><span class="co">#&gt; 6     1.475000e-01   3.500000e-02   4.600000e-01     0.8        2.881356</span></span>
-<span><span class="co">#&gt;   sharpness_label interpretation_label n_sims n_effective warning</span></span>
-<span><span class="co">#&gt; 1        moderate        pass_moderate      9           9        </span></span>
-<span><span class="co">#&gt; 2   uninformative         pass_diffuse      9           9        </span></span>
-<span><span class="co">#&gt; 3        moderate        pass_moderate      9           9        </span></span>
-<span><span class="co">#&gt; 4        moderate        pass_moderate      9           9        </span></span>
-<span><span class="co">#&gt; 5         diffuse         pass_diffuse      9           9        </span></span>
-<span><span class="co">#&gt; 6         diffuse         pass_diffuse      9           9</span></span></code></pre></div>
+<span><span class="co">#&gt;   simulated_median simulated_q025 simulated_q975 observed_discrepancy</span></span>
+<span><span class="co">#&gt; 1     4.477693e+01   3.864234e+01   8.435955e+01         3.743521e+01</span></span>
+<span><span class="co">#&gt; 2     1.074852e+08   1.290036e+07   1.258699e+09         7.904829e+07</span></span>
+<span><span class="co">#&gt; 3     2.223835e-01   5.437808e-02   3.919304e-01         2.808506e-01</span></span>
+<span><span class="co">#&gt; 4     1.475000e-01   3.500000e-02   4.600000e-01         7.111111e-02</span></span>
+<span><span class="co">#&gt; 5     1.475000e-01   3.500000e-02   4.600000e-01         7.111111e-02</span></span>
+<span><span class="co">#&gt; 6     1.475000e-01   3.500000e-02   4.600000e-01         7.111111e-02</span></span>
+<span><span class="co">#&gt;   simulated_discrepancy_median simulated_discrepancy_q025</span></span>
+<span><span class="co">#&gt; 1                 4.477693e+01               3.864234e+01</span></span>
+<span><span class="co">#&gt; 2                 1.074852e+08               1.290036e+07</span></span>
+<span><span class="co">#&gt; 3                 2.223835e-01               5.437808e-02</span></span>
+<span><span class="co">#&gt; 4                 1.475000e-01               3.500000e-02</span></span>
+<span><span class="co">#&gt; 5                 1.475000e-01               3.500000e-02</span></span>
+<span><span class="co">#&gt; 6                 1.475000e-01               3.500000e-02</span></span>
+<span><span class="co">#&gt;   simulated_discrepancy_q975 p_value mc_p_value mc_p_value_resolution</span></span>
+<span><span class="co">#&gt; 1               8.435955e+01     1.0        1.0                   0.1</span></span>
+<span><span class="co">#&gt; 2               1.258699e+09     0.7        0.7                   0.1</span></span>
+<span><span class="co">#&gt; 3               3.919304e-01     0.4        0.4                   0.1</span></span>
+<span><span class="co">#&gt; 4               4.600000e-01     0.8        0.8                   0.1</span></span>
+<span><span class="co">#&gt; 5               4.600000e-01     0.8        0.8                   0.1</span></span>
+<span><span class="co">#&gt; 6               4.600000e-01     0.8        0.8                   0.1</span></span>
+<span><span class="co">#&gt;   statistic_type</span></span>
+<span><span class="co">#&gt; 1    discrepancy</span></span>
+<span><span class="co">#&gt; 2    discrepancy</span></span>
+<span><span class="co">#&gt; 3    discrepancy</span></span>
+<span><span class="co">#&gt; 4    discrepancy</span></span>
+<span><span class="co">#&gt; 5    discrepancy</span></span>
+<span><span class="co">#&gt; 6    discrepancy</span></span>
+<span><span class="co">#&gt;                                                                                                 state_reference</span></span>
+<span><span class="co">#&gt; 1                                                                                                          &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 2                                                                                                          &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 3                                                                                                          &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 4 Observed states are decoded or supplied; simulated states are generated latent paths or supplied state paths.</span></span>
+<span><span class="co">#&gt; 5 Observed states are decoded or supplied; simulated states are generated latent paths or supplied state paths.</span></span>
+<span><span class="co">#&gt; 6 Observed states are decoded or supplied; simulated states are generated latent paths or supplied state paths.</span></span>
+<span><span class="co">#&gt;   sharpness_value sharpness_label interpretation_label n_sims n_effective</span></span>
+<span><span class="co">#&gt; 1        1.020999        moderate        pass_moderate      9           9</span></span>
+<span><span class="co">#&gt; 2        8.776384   uninformative         pass_diffuse      9           9</span></span>
+<span><span class="co">#&gt; 3        1.291545        moderate        pass_moderate      9           9</span></span>
+<span><span class="co">#&gt; 4        1.181818        moderate        pass_moderate      9           9</span></span>
+<span><span class="co">#&gt; 5        2.294118         diffuse         pass_diffuse      9           9</span></span>
+<span><span class="co">#&gt; 6        2.881356         diffuse         pass_diffuse      9           9</span></span>
+<span><span class="co">#&gt;   warning</span></span>
+<span><span class="co">#&gt; 1        </span></span>
+<span><span class="co">#&gt; 2        </span></span>
+<span><span class="co">#&gt; 3        </span></span>
+<span><span class="co">#&gt; 4        </span></span>
+<span><span class="co">#&gt; 5        </span></span>
+<span><span class="co">#&gt; 6</span></span></code></pre></div>
 <p>The dashboard can be drawn for any simulation strategy with the
 <code>method</code> argument.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
@@ -204,58 +248,65 @@ that the observed trajectory is atypical under the simulated model.</p>
 <code class="sourceCode R"><span><span class="va">global_rows</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">diagnosis</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">$</span><span class="va">state</span><span class="op">)</span></span>
 <span><span class="va">diagnosis</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">[</span></span>
 <span>  <span class="va">global_rows</span>,</span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"method"</span>, <span class="st">"diagnostic"</span>, <span class="st">"observed_statistic"</span>, <span class="st">"simulated_median"</span>, <span class="st">"p_value"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>    <span class="st">"method"</span>,</span>
+<span>    <span class="st">"diagnostic"</span>,</span>
+<span>    <span class="st">"observed_discrepancy"</span>,</span>
+<span>    <span class="st">"simulated_discrepancy_median"</span>,</span>
+<span>    <span class="st">"mc_p_value"</span>,</span>
+<span>    <span class="st">"mc_p_value_resolution"</span></span>
+<span>  <span class="op">)</span></span>
 <span><span class="op">]</span></span>
-<span><span class="co">#&gt;          method                      diagnostic observed_statistic</span></span>
-<span><span class="co">#&gt; 1        markov                  ud_wasserstein       3.743521e+01</span></span>
-<span><span class="co">#&gt; 2        markov                             msd       7.904829e+07</span></span>
-<span><span class="co">#&gt; 3        markov                       sinuosity       2.808506e-01</span></span>
-<span><span class="co">#&gt; 6        markov state_occupancy_total_variation       7.111111e-02</span></span>
-<span><span class="co">#&gt; 9        markov                  switching_rate       6.122449e-02</span></span>
-<span><span class="co">#&gt; 10       markov               transition_counts       1.126964e-01</span></span>
-<span><span class="co">#&gt; 17      viterbi                  ud_wasserstein       2.084967e+01</span></span>
-<span><span class="co">#&gt; 18      viterbi                             msd       1.240015e+06</span></span>
-<span><span class="co">#&gt; 19      viterbi                       sinuosity       1.189725e-01</span></span>
-<span><span class="co">#&gt; 22      viterbi state_occupancy_total_variation       5.551115e-17</span></span>
-<span><span class="co">#&gt; 25      viterbi                  switching_rate       0.000000e+00</span></span>
-<span><span class="co">#&gt; 26      viterbi               transition_counts       2.775558e-17</span></span>
-<span><span class="co">#&gt; 33 viterbi_tube                  ud_wasserstein       2.533931e+01</span></span>
-<span><span class="co">#&gt; 34 viterbi_tube                             msd       3.713978e+06</span></span>
-<span><span class="co">#&gt; 35 viterbi_tube                       sinuosity       1.644925e-01</span></span>
-<span><span class="co">#&gt; 38 viterbi_tube state_occupancy_total_variation       3.111111e-02</span></span>
-<span><span class="co">#&gt; 41 viterbi_tube                  switching_rate       6.122449e-02</span></span>
-<span><span class="co">#&gt; 42 viterbi_tube               transition_counts       7.689717e-02</span></span>
-<span><span class="co">#&gt; 49    posterior                  ud_wasserstein       3.340468e+01</span></span>
-<span><span class="co">#&gt; 50    posterior                             msd       2.459208e+07</span></span>
-<span><span class="co">#&gt; 51    posterior                       sinuosity       2.958648e-01</span></span>
-<span><span class="co">#&gt; 54    posterior state_occupancy_total_variation       4.666667e-02</span></span>
-<span><span class="co">#&gt; 57    posterior                  switching_rate       6.802721e-02</span></span>
-<span><span class="co">#&gt; 58    posterior               transition_counts       9.800536e-02</span></span>
-<span><span class="co">#&gt;    simulated_median p_value</span></span>
-<span><span class="co">#&gt; 1      4.477693e+01     1.0</span></span>
-<span><span class="co">#&gt; 2      1.074852e+08     0.7</span></span>
-<span><span class="co">#&gt; 3      2.223835e-01     0.4</span></span>
-<span><span class="co">#&gt; 6      1.475000e-01     0.8</span></span>
-<span><span class="co">#&gt; 9      4.591837e-02     0.3</span></span>
-<span><span class="co">#&gt; 10     2.051312e-01     0.8</span></span>
-<span><span class="co">#&gt; 17     2.412409e+01     0.7</span></span>
-<span><span class="co">#&gt; 18     2.238138e+06     0.8</span></span>
-<span><span class="co">#&gt; 19     9.094134e-02     0.5</span></span>
-<span><span class="co">#&gt; 22     5.551115e-17     1.0</span></span>
-<span><span class="co">#&gt; 25     0.000000e+00     1.0</span></span>
-<span><span class="co">#&gt; 26     2.775558e-17     1.0</span></span>
-<span><span class="co">#&gt; 33     2.888445e+01     0.9</span></span>
-<span><span class="co">#&gt; 34     8.029522e+06     0.7</span></span>
-<span><span class="co">#&gt; 35     1.025450e-01     0.4</span></span>
-<span><span class="co">#&gt; 38     3.500000e-02     0.9</span></span>
-<span><span class="co">#&gt; 41     2.295918e-02     0.1</span></span>
-<span><span class="co">#&gt; 42     6.300556e-02     0.5</span></span>
-<span><span class="co">#&gt; 49     4.410218e+01     1.0</span></span>
-<span><span class="co">#&gt; 50     1.211236e+07     0.5</span></span>
-<span><span class="co">#&gt; 51     1.506799e-01     0.1</span></span>
-<span><span class="co">#&gt; 54     6.000000e-02     0.7</span></span>
-<span><span class="co">#&gt; 57     1.530612e-02     0.1</span></span>
-<span><span class="co">#&gt; 58     8.506802e-02     0.5</span></span></code></pre></div>
+<span><span class="co">#&gt;          method                      diagnostic observed_discrepancy</span></span>
+<span><span class="co">#&gt; 1        markov                  ud_wasserstein         3.743521e+01</span></span>
+<span><span class="co">#&gt; 2        markov                             msd         7.904829e+07</span></span>
+<span><span class="co">#&gt; 3        markov                       sinuosity         2.808506e-01</span></span>
+<span><span class="co">#&gt; 6        markov state_occupancy_total_variation         7.111111e-02</span></span>
+<span><span class="co">#&gt; 11       markov                  switching_rate         6.122449e-02</span></span>
+<span><span class="co">#&gt; 12       markov               transition_counts         1.126964e-01</span></span>
+<span><span class="co">#&gt; 19      viterbi                  ud_wasserstein         2.084967e+01</span></span>
+<span><span class="co">#&gt; 20      viterbi                             msd         1.240015e+06</span></span>
+<span><span class="co">#&gt; 21      viterbi                       sinuosity         1.189725e-01</span></span>
+<span><span class="co">#&gt; 24      viterbi state_occupancy_total_variation         5.551115e-17</span></span>
+<span><span class="co">#&gt; 29      viterbi                  switching_rate         0.000000e+00</span></span>
+<span><span class="co">#&gt; 30      viterbi               transition_counts         2.775558e-17</span></span>
+<span><span class="co">#&gt; 37 viterbi_tube                  ud_wasserstein         2.533931e+01</span></span>
+<span><span class="co">#&gt; 38 viterbi_tube                             msd         3.713978e+06</span></span>
+<span><span class="co">#&gt; 39 viterbi_tube                       sinuosity         1.644925e-01</span></span>
+<span><span class="co">#&gt; 42 viterbi_tube state_occupancy_total_variation         3.111111e-02</span></span>
+<span><span class="co">#&gt; 47 viterbi_tube                  switching_rate         6.122449e-02</span></span>
+<span><span class="co">#&gt; 48 viterbi_tube               transition_counts         7.689717e-02</span></span>
+<span><span class="co">#&gt; 55    posterior                  ud_wasserstein         3.340468e+01</span></span>
+<span><span class="co">#&gt; 56    posterior                             msd         2.459208e+07</span></span>
+<span><span class="co">#&gt; 57    posterior                       sinuosity         2.958648e-01</span></span>
+<span><span class="co">#&gt; 60    posterior state_occupancy_total_variation         4.666667e-02</span></span>
+<span><span class="co">#&gt; 65    posterior                  switching_rate         6.802721e-02</span></span>
+<span><span class="co">#&gt; 66    posterior               transition_counts         9.800536e-02</span></span>
+<span><span class="co">#&gt;    simulated_discrepancy_median mc_p_value mc_p_value_resolution</span></span>
+<span><span class="co">#&gt; 1                  4.477693e+01        1.0                   0.1</span></span>
+<span><span class="co">#&gt; 2                  1.074852e+08        0.7                   0.1</span></span>
+<span><span class="co">#&gt; 3                  2.223835e-01        0.4                   0.1</span></span>
+<span><span class="co">#&gt; 6                  1.475000e-01        0.8                   0.1</span></span>
+<span><span class="co">#&gt; 11                 4.591837e-02        0.3                   0.1</span></span>
+<span><span class="co">#&gt; 12                 2.051312e-01        0.8                   0.1</span></span>
+<span><span class="co">#&gt; 19                 2.412409e+01        0.7                   0.1</span></span>
+<span><span class="co">#&gt; 20                 2.238138e+06        0.8                   0.1</span></span>
+<span><span class="co">#&gt; 21                 9.094134e-02        0.5                   0.1</span></span>
+<span><span class="co">#&gt; 24                 5.551115e-17        1.0                   0.1</span></span>
+<span><span class="co">#&gt; 29                 0.000000e+00        1.0                   0.1</span></span>
+<span><span class="co">#&gt; 30                 2.775558e-17        1.0                   0.1</span></span>
+<span><span class="co">#&gt; 37                 2.888445e+01        0.9                   0.1</span></span>
+<span><span class="co">#&gt; 38                 8.029522e+06        0.7                   0.1</span></span>
+<span><span class="co">#&gt; 39                 1.025450e-01        0.4                   0.1</span></span>
+<span><span class="co">#&gt; 42                 3.500000e-02        0.9                   0.1</span></span>
+<span><span class="co">#&gt; 47                 2.295918e-02        0.1                   0.1</span></span>
+<span><span class="co">#&gt; 48                 6.300556e-02        0.5                   0.1</span></span>
+<span><span class="co">#&gt; 55                 4.410218e+01        1.0                   0.1</span></span>
+<span><span class="co">#&gt; 56                 1.211236e+07        0.5                   0.1</span></span>
+<span><span class="co">#&gt; 57                 1.506799e-01        0.1                   0.1</span></span>
+<span><span class="co">#&gt; 60                 6.000000e-02        0.7                   0.1</span></span>
+<span><span class="co">#&gt; 65                 1.530612e-02        0.1                   0.1</span></span>
+<span><span class="co">#&gt; 66                 8.506802e-02        0.5                   0.1</span></span></code></pre></div>
 <p>For this example, <code>n_sims = 9</code>, so the smallest possible
 Monte Carlo p-value is <code>0.1</code>. In a general run with
 <code>n_sims = N</code>, the smallest possible p-value is
@@ -263,6 +314,31 @@ Monte Carlo p-value is <code>0.1</code>. In a general run with
 finite-simulation correction</p>
 <pre class="text"><code>(number of simulated statistics at least as extreme as observed + 1) /
   (number of simulations + 1)</code></pre>
+<p>For diagnostics with missing or non-finite simulated statistics, the
+effective resolution is computed from <code>n_effective</code>, the
+number of finite simulated reference values.</p>
+</div>
+<div class="section level2">
+<h2 id="reading-state-diagnostics">Reading state diagnostics<a class="anchor" aria-label="anchor" href="#reading-state-diagnostics"></a>
+</h2>
+<p>State diagnostics are conditional on a state path. In empirical data,
+this path is usually decoded, for example with Viterbi, rather than
+observed directly. The simulated state paths are generated by the
+selected simulation strategy.</p>
+<p>The diagnostic table therefore includes a
+<code>state_reference</code> column. It is a reminder that state-level
+rows compare decoded or supplied observed states with generated or
+supplied simulated state paths.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">state_rows</span> <span class="op">&lt;-</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">diagnosis</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">$</span><span class="va">state</span><span class="op">)</span> <span class="op">|</span></span>
+<span>  <span class="va">diagnosis</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">$</span><span class="va">diagnostic</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>    <span class="st">"state_occupancy_total_variation"</span>,</span>
+<span>    <span class="st">"switching_rate"</span>,</span>
+<span>    <span class="st">"transition_counts"</span></span>
+<span>  <span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">diagnosis</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">[</span><span class="va">state_rows</span>, <span class="st">"state_reference"</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "Observed states are decoded or supplied; simulated states are generated latent paths or supplied state paths."</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="what-the-four-strategies-diagnose">What the four strategies diagnose<a class="anchor" aria-label="anchor" href="#what-the-four-strategies-diagnose"></a>
@@ -293,7 +369,7 @@ trajectory-level generative validation: compare observed and simulated
 trajectories using global diagnostics such as UD, MSD, and sinuosity.
 State diagnostics such as occupancy, switching rate, and transition
 counts are mathematically trivial.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">one_state_fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  initial <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  transition <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span>,</span>

@@ -27,6 +27,7 @@ refitting or resimulating the model."></head><body>
     <li><h6 class="dropdown-header" data-toc-skip>Generative validation</h6></li>
     <li><a class="dropdown-item" href="../articles/hmmssf-generative-validation.html">Generative validation for HMM-SSF models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostic-criteria-summary.html">Diagnostic criteria summary</a></li>
+    <li><a class="dropdown-item" href="../articles/hsmm-ssf-memory-diagnostic.html">HSMM-SSF residence-time stress test</a></li>
     <li><a class="dropdown-item" href="../articles/zebra-model-comparison.html">Zebra model comparison with Markov generation</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
@@ -59,11 +60,13 @@ refitting or resimulating the model.</p>
 <span>  <span class="va">simulated_tracks</span>,</span>
 <span>  observed_states <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  simulated_states <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  reference_transition <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  label <span class="op">=</span> <span class="st">"simulation"</span>,</span>
 <span>  diagnostics <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ud_wasserstein"</span>, <span class="st">"msd"</span>, <span class="st">"sinuosity"</span>, <span class="st">"barrier_crossing"</span>,</span>
-<span>    <span class="st">"state_occupancy"</span>, <span class="st">"state_residence_time"</span>, <span class="st">"switching_rate"</span>, <span class="st">"transition_counts"</span>,</span>
-<span>    <span class="st">"state_conditioned_msd"</span>, <span class="st">"state_conditioned_step_length"</span>,</span>
-<span>    <span class="st">"state_conditioned_turning_angle"</span>, <span class="st">"state_conditioned_ud"</span>, <span class="st">"habitat_use_by_state"</span><span class="op">)</span>,</span>
+<span>    <span class="st">"state_occupancy"</span>, <span class="st">"state_residence_time"</span>, <span class="st">"state_residence_geometric"</span>,</span>
+<span>    <span class="st">"switching_rate"</span>, <span class="st">"transition_counts"</span>, <span class="st">"state_conditioned_msd"</span>,</span>
+<span>    <span class="st">"state_conditioned_step_length"</span>, <span class="st">"state_conditioned_turning_angle"</span>,</span>
+<span>    <span class="st">"state_conditioned_ud"</span>, <span class="st">"habitat_use_by_state"</span><span class="op">)</span>,</span>
 <span>  barriers <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  metadata <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  warnings <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span></span>
@@ -88,6 +91,11 @@ refitting or resimulating the model.</p>
 
 <dt id="arg-simulated-states">simulated_states<a class="anchor" aria-label="anchor" href="#arg-simulated-states"></a></dt>
 <dd><p>Optional matrix of simulated state paths.</p></dd>
+
+
+<dt id="arg-reference-transition">reference_transition<a class="anchor" aria-label="anchor" href="#arg-reference-transition"></a></dt>
+<dd><p>Optional homogeneous transition matrix used by
+<code>state_residence_geometric</code>.</p></dd>
 
 
 <dt id="arg-label">label<a class="anchor" aria-label="anchor" href="#arg-label"></a></dt>

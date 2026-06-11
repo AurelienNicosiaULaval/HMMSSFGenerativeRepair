@@ -48,6 +48,23 @@ With 99 simulations, the smallest possible p-value is therefore 0.01. A small
 p-value means that the observed trajectory is more discrepant than expected from
 simulation-to-simulation variability.
 
+The diagnostic table keeps the original column names
+`observed_statistic`, `simulated_median`, `simulated_q025`, and
+`simulated_q975` for backward compatibility. It also provides explicit aliases:
+
+| Column | Meaning |
+| --- | --- |
+| `observed_discrepancy` | Discrepancy computed from the observed trajectory or decoded state path. |
+| `simulated_discrepancy_median` | Median discrepancy under the fitted-model simulation reference. |
+| `simulated_discrepancy_q025` | Lower simulation-reference quantile. |
+| `simulated_discrepancy_q975` | Upper simulation-reference quantile. |
+| `mc_p_value` | Same value as `p_value`, named to emphasize the Monte Carlo rank test. |
+| `mc_p_value_resolution` | Smallest possible p-value step, equal to `1 / (n_effective + 1)`. |
+
+The p-value is therefore not a direct ranking of visual distances across
+candidate models. It depends on both the observed discrepancy and the spread of
+the model-specific simulated reference distribution.
+
 The `sharpness_label` is secondary. It describes how concentrated or diffuse
 the simulated reference distribution is. The main compatibility statement comes
 from the Monte Carlo p-value.
@@ -65,6 +82,11 @@ The diagnostics use four objects:
 
 The state diagnostics are only meaningful when `observed_states` and
 `simulated_states` are supplied.
+
+For empirical applications, `observed_states` are usually decoded states rather
+than directly observed states. The package records this distinction in
+`state_reference`: state diagnostics compare decoded or supplied observed state
+paths with generated or supplied simulated state paths.
 
 ## Global trajectory diagnostics
 
@@ -174,8 +196,8 @@ The package also reports `state_occupancy_total_variation`:
 mean absolute difference across all states
 ```
 
-Interpretation: a small p-value means the fitted generative process spends an
-unrealistic amount of time in one or more states.
+This global occupancy discrepancy is usually the preferred summary in main
+tables. Per-state rows remain useful for diagnosis.
 
 In a two-state model, the two per-state occupancy discrepancy values can be
 numerically identical because state proportions are complementary and the same
@@ -203,6 +225,43 @@ leave-one-out Wasserstein distances among simulated residence-time distributions
 
 Interpretation: a small p-value means the observed state persistence is unusual
 relative to the fitted transition dynamics.
+
+### `state_residence_geometric`
+
+Purpose: test the homogeneous-HMM dwell-time assumption more directly.
+
+For a homogeneous HMM with transition matrix `Gamma`, the dwell time in state
+`s` follows a geometric distribution with leaving probability
+
+```text
+1 - Gamma[s, s]
+```
+
+The package uses a parametric-bootstrap reference from this geometric
+distribution and compares it with the observed or decoded residence-time
+distribution by state.
+
+Observed statistic:
+
+```text
+mean Wasserstein distance between decoded residence times and geometric
+bootstrap residence-time samples
+```
+
+Simulated reference:
+
+```text
+leave-one-out Wasserstein distances among geometric bootstrap samples
+```
+
+Interpretation: a small p-value means the decoded residence-time distribution is
+unusual under the geometric dwell-time distribution implied by a homogeneous
+HMM. This is evidence of a residence-time mismatch, not definitive proof that
+the true process is semi-Markov.
+
+This diagnostic is only defined for homogeneous transition matrices. For
+time-varying transition probabilities, use `state_residence_time` with
+model-generated simulations.
 
 ### `switching_rate`
 

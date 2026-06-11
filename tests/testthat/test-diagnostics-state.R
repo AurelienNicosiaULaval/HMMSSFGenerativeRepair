@@ -11,6 +11,23 @@ test_that("residence diagnostics handle no-switch paths", {
   expect_true(any(grepl("low power", diag$warning, ignore.case = TRUE)))
 })
 
+test_that("geometric residence diagnostics use a homogeneous transition matrix", {
+  observed <- c(rep(1L, 4), rep(2L, 2), rep(1L, 5), rep(2L, 3), rep(1L, 4))
+  transition <- matrix(c(0.75, 0.25, 0.30, 0.70), nrow = 2, byrow = TRUE)
+  diag <- diagnostic_state_residence_geometric(
+    observed_states = observed,
+    transition = transition,
+    n_sims = 19,
+    seed = 1
+  )
+
+  expect_equal(diag$diagnostic, rep("state_residence_geometric", 2))
+  expect_equal(diag$n_sims, c(19, 19))
+  expect_equal(diag$mc_p_value_resolution, c(0.05, 0.05))
+  expect_true(all(is.finite(diag$p_value)))
+  expect_true(all(!is.na(diag$state_reference)))
+})
+
 test_that("transition-count diagnostics return finite rows", {
   observed <- c(1, 1, 2, 1, 2)
   simulated <- rbind(c(1, 2, 2, 1, 1), c(1, 1, 1, 2, 2))
