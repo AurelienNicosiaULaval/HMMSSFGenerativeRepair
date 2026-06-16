@@ -1,0 +1,1365 @@
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{placeins}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks = true,
+  linkcolor = blue,
+  citecolor = blue,
+  urlcolor = blue
+}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\given}{\,\vert\,}
+\newcommand{\ind}{\mathbb{I}}
+\newcommand{\mcP}{p_{\mathrm{MC}}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\maybeincludegraphics}[2][]{%
+  \IfFileExists{#2}{%
+    \includegraphics[#1]{#2}%
+  }{%
+    \fbox{\parbox{0.9\linewidth}{Figure file not found: \texttt{#2}}}%
+  }%
+}
+\setlength{\emergencystretch}{3em}
+
+\title{Beyond the Next Step for Latent-State Movement Models: Generative Validation Diagnostics for Hidden Markov Step-Selection Functions}
+\author{Aurelien Nicosia}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+% The introduction and conclusion are intentionally omitted in this first draft.
+% The current version starts with the methodological core and empirical material.
+
+\section*{Scope of this draft}
+
+This draft focuses on the methodological core of the article: the HMM-SSF
+model formulation, the generative-validation logic, the diagnostic criteria,
+and the first simulation and empirical examples. The introduction, broader
+discussion, and conclusion are intentionally left for a later version, after
+the final simulation design and empirical emphasis have been fixed.
+
+\section{Extension of the SSF generative-validation framework}
+
+This manuscript is conceived as a latent-state extension of the generative
+validation framework for SSF and iSSF models developed in \citet{nicosia2026}.
+The starting point is the same: a fitted step-selection model should not only
+describe local one-step decisions, but should also regenerate plausible
+trajectory-scale patterns when iterated forward. In the single-state setting,
+the validation target is the distribution of simulated trajectories generated
+by the fitted SSF or iSSF kernel. In the HMM-SSF setting, the validation target
+has two coupled components: the spatial trajectory and the latent regime
+sequence that governs state-specific movement and selection.
+
+The original framework is organized around four trajectory-level pillars:
+emergent utilization distributions, mean squared displacement, path sinuosity,
+and barrier crossing. These pillars remain valid for HMM-SSFs because a
+multi-state model still generates an ordinary movement trajectory. The HMM
+extension adds a second diagnostic layer for the latent regime process:
+occupancy, residence times, switching rates, transition counts, and
+state-conditioned movement summaries. The goal is therefore not to replace the
+SSF diagnostics, but to decompose generative mismatch into spatial,
+movement-dynamic, and state-process components.
+
+\begin{table}[ht]
+\centering
+\caption{Relationship between the original SSF generative-validation pillars and the HMM-SSF extension.}
+\label{tab:ssf-to-hmm-extension}
+\begin{tabular}{p{0.25\linewidth}p{0.31\linewidth}p{0.34\linewidth}}
+\toprule
+Original SSF pillar & Role retained for HMM-SSFs & Additional latent-state question \\
+\midrule
+Emergent utilization distributions & Does the full fitted model regenerate the observed spatial footprint? & Are discrepancies driven by the state-specific SSF kernels or by unrealistic state occupancy? \\
+Mean squared displacement & Does the model reproduce displacement scaling over time? & Does the latent switching process reproduce the temporal organization of movement regimes? \\
+Path sinuosity & Does the model reproduce path-level tortuosity or directional persistence? & Are state-specific movement kernels and state durations jointly producing realistic path structure? \\
+Barrier crossing & Does the model reproduce functional permeability of known barriers? & Does barrier response vary by state, and are barrier-crossing opportunities assigned to realistic regimes? \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+This framing also clarifies how the diagnostics should be interpreted. The
+Monte Carlo p-values are not generic measures of visual closeness across
+candidate models. Each fitted model generates its own reference distribution,
+with its own variability and sharpness. A model can therefore have a larger
+observed discrepancy but a less extreme p-value if its simulated trajectories
+are highly variable, whereas a sharper model can yield a smaller p-value for a
+smaller absolute discrepancy. The diagnostic question is model-specific:
+is the observed trajectory unusual under the generative distribution implied by
+that fitted model?
+
+\section{Model framework}
+
+Let $\{X_t\}_{t=1}^T$ denote a regular movement trajectory, with
+$X_t \in \R^2$, and let $\{S_t\}_{t=1}^T$ denote a latent behavioural regime
+process taking values in $\{1,\ldots,K\}$. A hidden Markov step-selection
+function (HMM-SSF) combines a latent state process with a state-dependent
+movement and habitat-selection kernel. The central modelling assumption is
+that the animal alternates among a finite number of movement regimes, and that
+each regime has its own movement kernel and habitat-selection response.
+
+\paragraph{Latent-state process.}
+
+The latent process is specified through an initial distribution
+$\delta=(\delta_1,\ldots,\delta_K)$ and transition probabilities
+\begin{equation*}
+  \Pr(S_{t+1}=j \given S_t=i, z_t) = \Gamma_{ij}(z_t),
+  \qquad i,j \in \{1,\ldots,K\},
+\end{equation*}
+where $z_t$ denotes optional covariates affecting state persistence or
+switching. In the homogeneous case, $\Gamma_{ij}(z_t)$ reduces to a fixed
+transition matrix $\Gamma$. In a time-varying transition model, each row of
+$\Gamma(z_t)$ is usually parametrized by multinomial-logit contrasts. For
+example, using state $i$ as the baseline destination from current state $i$,
+one may write
+\begin{equation*}
+  \log\left\{\frac{\Gamma_{ij}(z_t)}{\Gamma_{ii}(z_t)}\right\}
+  =
+  \alpha_{ij} + \lambda_{ij}^{\top} z_t,
+  \qquad j \ne i.
+\end{equation*}
+This representation separates behavioural persistence from movement and
+habitat selection. The transition model controls when regimes are entered and
+left, whereas the state-dependent SSF controls how the animal moves and selects
+habitat while occupying a given regime.
+
+\paragraph{State-dependent step-selection kernel.}
+
+Conditional on the next state, the transition from $X_t$ to $X_{t+1}$ is
+described by a state-specific step-selection kernel. In its exponential
+form, a generic state-specific SSF can be written as
+\begin{equation}
+  f_s(x \given x_t, x_{t-1}, e_t)
+  =
+  \frac{
+    q_s(x \given x_t, x_{t-1}; \eta_s)
+    \exp\{ \beta_s^\top c(x, x_t, x_{t-1}, e_t) \}
+  }{
+    \int_{\Omega}
+    q_s(u \given x_t, x_{t-1}; \eta_s)
+    \exp\{ \beta_s^\top c(u, x_t, x_{t-1}, e_t) \}
+    \,du
+  },
+  \label{eq:ssf-kernel}
+\end{equation}
+where $q_s$ is the movement kernel in state $s$, $\eta_s$ contains its
+movement parameters, $e_t$ denotes environmental information available at time
+$t$, $c(\cdot)$ is a vector of movement and environmental covariates, and
+$\beta_s$ is a state-specific selection coefficient vector. This formulation
+follows the general step-selection framework used to connect movement
+constraints and resource selection \citep{forester2009,avgar2016} and its
+multi-state HMM-SSF extensions \citep{nicosia2017,klappstein2023}.
+
+In applications fitted with used and available steps, the continuous
+normalizing integral in Eq.~\eqref{eq:ssf-kernel} is replaced by a discrete
+normalization over a candidate set $\mathcal{A}_t$ that contains the observed
+endpoint and a finite number of available endpoints. The state-specific
+probability assigned to candidate $a \in \mathcal{A}_t$ is then
+\begin{equation}
+  p_s(a \given \mathcal{A}_t)
+  =
+  \frac{
+    q_s(a \given x_t, x_{t-1}; \eta_s)
+    \exp\{ \beta_s^\top c(a, x_t, x_{t-1}, e_t) \}
+  }{
+    \sum_{u \in \mathcal{A}_t}
+    q_s(u \given x_t, x_{t-1}; \eta_s)
+    \exp\{ \beta_s^\top c(u, x_t, x_{t-1}, e_t) \}
+  }.
+  \label{eq:discrete-ssf}
+\end{equation}
+This discrete form is useful for fitting because it connects the HMM-SSF to
+conditional logistic regression and to state-dependent conditional likelihood
+contributions.
+
+\paragraph{Joint generative model.}
+
+Conditioning on the first locations required to define step length and turning
+angle, the joint density of a latent state path and a movement path factorizes
+as
+\begin{equation}
+  p_{\theta}(s_{1:T}, x_{1:T})
+  =
+  \delta_{s_1}
+  \prod_{t=1}^{T-1}
+  \Gamma_{s_t s_{t+1}}(z_t)
+  f_{s_{t+1}}(x_{t+1} \given x_t, x_{t-1}, e_t),
+  \label{eq:joint-generative}
+\end{equation}
+up to the conditioning convention for the first step. The parameter vector
+$\theta$ contains the initial distribution, transition parameters,
+state-specific movement parameters, and state-specific selection coefficients.
+Equation~\eqref{eq:joint-generative} is the key theoretical object for this
+paper: it defines both the likelihood-based model and the simulation mechanism
+used for prediction and generative validation.
+
+\paragraph{Likelihood and state uncertainty.}
+
+Because the state path is latent, the observed-data likelihood sums over all
+possible state sequences. Let $E_t(s)$ denote the state-specific contribution
+of the observed step at time $t$ under state $s$. In the discrete used-available
+form, $E_t(s)$ is given by Eq.~\eqref{eq:discrete-ssf} evaluated at the
+observed endpoint. The likelihood can then be evaluated with the standard HMM
+forward recursion \citep{rabiner1989,langrock2012}. With
+$P_t=\mathrm{diag}\{E_t(1),\ldots,E_t(K)\}$, a schematic likelihood expression
+is
+\begin{equation*}
+  L(\theta)
+  =
+  \delta^\top P_1
+  \Gamma(z_1) P_2
+  \Gamma(z_2) \cdots
+  \Gamma(z_{T-1}) P_T
+  \mathbf{1},
+\end{equation*}
+where $\mathbf{1}$ is a vector of ones. The exact indexing of $P_t$ depends on
+whether the first step is treated as fixed or modelled explicitly, but the
+factorization is the same.
+
+This likelihood representation matters for validation because state labels are
+not directly observed in empirical telemetry data. The fitted model provides
+filtered state probabilities, smoothed state probabilities, and a most likely
+Viterbi path. These summaries are useful, but they are not equivalent to
+observed regimes. Consequently, any diagnostic that uses state labels must be
+interpreted conditionally on a state-assignment rule or averaged over plausible
+state paths.
+
+\paragraph{Prediction targets.}
+
+A fitted HMM-SSF induces several distinct predictive objects. The one-step
+predictive distribution is a mixture over possible next states:
+\begin{equation}
+  p_{\theta}(x_{t+1} \given \mathcal{F}_t)
+  =
+  \sum_{i=1}^{K}\sum_{j=1}^{K}
+  \alpha_t(i)\Gamma_{ij}(z_t)
+  f_j(x_{t+1} \given x_t,x_{t-1},e_t),
+  \label{eq:one-step-predictive}
+\end{equation}
+where $\mathcal{F}_t$ denotes the information available up to time $t$, and
+$\alpha_t(i)=\Pr(S_t=i\given \mathcal{F}_t)$ is the filtered probability of
+state $i$. Multi-step prediction is obtained by iterating the same mechanism:
+forecast the next state, draw or integrate over the next location, update the
+movement history and environmental covariates, and repeat. This iteration is
+what links local step-selection rules to emergent predictions such as
+long-term space use, displacement scaling, path structure, residence times,
+and barrier-crossing frequencies.
+
+The distinction between local and generative prediction is central. A model may
+provide reasonable one-step conditional probabilities while producing
+unrealistic long-horizon trajectories once Eq.~\eqref{eq:joint-generative} is
+iterated. The diagnostics below are designed to evaluate this longer-horizon
+predictive distribution rather than only the local likelihood contributions.
+
+\section{Generative validation}
+
+The validation workflow uses the same Monte Carlo rank logic as the SSF
+framework in \citet{nicosia2026}. It asks whether the observed trajectory, or a
+decoded state sequence derived from it, is unusual relative to replicate
+outputs generated by the fitted model. Let $y$ denote the observed trajectory
+and let $Y^{(1)},\ldots,Y^{(M)}$ denote $M$ simulated trajectories generated
+under a fitted HMM-SSF. For a diagnostic discrepancy $D$, the observed
+discrepancy is compared with a simulation reference distribution:
+\begin{align*}
+  T_{\mathrm{obs}}
+  &=
+  \frac{1}{M}\sum_{m=1}^{M} D(y, Y^{(m)}), \\
+  T_m
+  &=
+  \frac{1}{M-1}\sum_{\ell \ne m} D(Y^{(m)}, Y^{(\ell)}),
+  \qquad m=1,\ldots,M .
+\end{align*}
+The Monte Carlo p-value is
+\begin{equation*}
+  \mcP =
+  \frac{1 + \sum_{m=1}^{M} \ind\{T_m \ge T_{\mathrm{obs}}\}}
+       {M+1}.
+\end{equation*}
+For diagnostics where larger discrepancies indicate poorer agreement, small
+values of $\mcP$ indicate that the observed trajectory or decoded state path is
+more discrepant than expected under the fitted model. The finite simulation
+resolution is $(M+1)^{-1}$, which is reported with each diagnostic.
+
+This rank-based construction is related to simulation-based model criticism and
+realized-discrepancy checks \citep{gelman1996} and to Monte Carlo significance
+testing \citep{besag1989}. The interpretation is conditional on the fitted
+model, the simulation strategy, and the chosen discrepancy. It is not a direct
+ranking of candidate models by visual distance, because each candidate model
+induces its own simulation reference distribution.
+
+Compatibility alone is not sufficient for an informative diagnostic. A fitted
+model can pass because the simulated reference distribution is diffuse. The
+workflow therefore reports a sharpness score, computed from the concentration
+of simulated discrepancies. In the workflow used here, sharpness is a
+secondary label: it does not replace the Monte Carlo p-value, but it helps
+distinguish a concentrated compatibility check from one with low diagnostic
+resolution.
+
+\section{Diagnostic discrepancies for HMM-SSFs}
+
+The single-state generative-validation framework organizes model checking
+around biologically interpretable trajectory-level summaries: emergent space
+use, displacement dynamics, path structure, and barrier interactions. These
+criteria remain necessary for HMM-SSFs because the fitted model still generates
+ordinary spatial trajectories. However, latent-state models introduce an
+additional process that must also be checked: the temporal organization of
+behavioural regimes. A multi-state model may reproduce the spatial footprint
+of the observed trajectory while assigning unrealistic time budgets to states,
+generating implausible residence times, or producing state-specific movement
+patterns that do not match the decoded regimes.
+
+We therefore separate the diagnostics into two complementary groups. The first
+group applies the original trajectory-level checks to the full simulated path,
+without conditioning on state labels. The second group targets the latent
+regime process and asks whether the fitted model regenerates plausible
+occupancy, persistence, switching structure, and state-conditioned movement.
+These diagnostics are not combined into a single scalar goodness-of-fit
+measure. As in the one-state framework, they are intended to form a diagnostic
+dashboard in which each criterion probes a distinct way in which the fitted
+model can fail to generate realistic movement.
+
+\begin{table}[ht]
+\centering
+\caption{Overview of generative diagnostics for HMM-SSFs. The first four rows extend the trajectory-level pillars of the single-state SSF framework; the remaining rows target the latent state process and state-conditioned movement.}
+\label{tab:hmm-diagnostics-overview}
+\renewcommand{\arraystretch}{1.18}
+\setlength{\tabcolsep}{3pt}
+\footnotesize
+\begin{tabular}{p{0.17\linewidth}p{0.28\linewidth}p{0.24\linewidth}p{0.18\linewidth}}
+\toprule
+Diagnostic family & Target pattern & Summary statistic & Typical failure modes \\
+\midrule
+Emergent utilization distributions &
+Long-term spatial configuration of space use. &
+Spatial discrepancy between observed and simulated utilization distributions. &
+Spatial leakage, over-diffusion, or failure to reproduce concentration. \\
+
+Mean squared displacement &
+Temporal displacement scaling across lags. &
+Integrated discrepancy between observed and simulated MSD curves. &
+Over-diffusion, under-diffusion, or missing multi-state temporal structure. \\
+
+Path sinuosity &
+Path-level tortuosity and directional persistence. &
+Absolute discrepancy in straightness index. &
+Paths too straight, too tortuous, or behaviourally unrealistic. \\
+
+Barrier crossing &
+Functional connectivity across known linear features. &
+Observed barrier crossings relative to simulated crossings. &
+Overestimated permeability or state-specific barrier response mismatch. \\
+
+State occupancy &
+Time budget allocated to each latent regime. &
+Per-state occupancy and global total-variation discrepancy. &
+Dominant states, missing states, or unrealistic regime allocation. \\
+
+Residence time &
+Persistence and dwell-time shape within regimes. &
+Residence-time distribution discrepancy and geometric dwell-time check. &
+Non-geometric residence times, memory, or inadequate Markov persistence. \\
+
+Switching and transitions &
+Frequency and direction of transitions among regimes. &
+Switching rate and normalized transition-count discrepancy. &
+Incorrect switching frequency or misspecified time-varying transition model. \\
+
+State-conditioned movement &
+Movement phenotype within each decoded or simulated regime. &
+State-specific step-length, turning-angle, and MSD discrepancies. &
+Misspecified state-specific movement kernels or poorly separated regimes. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Trajectory-level diagnostics}
+
+Trajectory-level diagnostics do not require a latent state path. They evaluate
+emergent movement patterns produced by the full fitted model, and correspond
+to the original SSF generative-validation pillars. Let
+$X_{1:T}^{(0)}$ denote the observed trajectory and
+$X_{1:T}^{(m)}$, $m=1,\ldots,M$, denote simulated trajectories generated under
+a given HMM-SSF simulation strategy. These diagnostics intentionally ignore the
+state labels after simulation: they ask whether the fitted model, after
+integrating over its latent regime process, produces realistic spatial paths.
+This distinction is important because a model can have interpretable latent
+states while still producing unrealistic long-horizon trajectories, or can
+generate plausible spatial paths while allocating movement to unrealistic
+regimes.
+
+\paragraph{Utilization-distribution discrepancy.}
+This diagnostic targets emergent space use, as in the original SSF framework.
+For each trajectory, we construct an empirical utilization distribution (UD)
+from the visited locations. Let $\mu_0$ denote the empirical UD of the observed
+trajectory and let $\mu_m$ denote the empirical UD of simulated trajectory
+$m$. In the full spatial version, mismatch between UDs can be measured by the
+1-Wasserstein distance, which quantifies the minimal amount of spatial
+``work'' required to transport probability mass from one distribution to
+another \citep{villani2009}. In the present HMM-SSF analyses, we use a
+computationally light approximation based on the sum of one-dimensional
+Wasserstein distances between marginal coordinate distributions:
+\begin{equation*}
+  D_{\mathrm{UD}}(a,b)
+  =
+  W_1(a_x,b_x) + W_1(a_y,b_y),
+\end{equation*}
+where $a_x$ and $b_x$ are the empirical distributions of the $x$ coordinates,
+and $a_y$ and $b_y$ are the corresponding empirical distributions of the $y$
+coordinates. The observed discrepancy is
+\begin{equation*}
+  T_{\mathrm{obs}}^{\mathrm{UD}}
+  =
+  \frac{1}{M}\sum_{m=1}^{M} D_{\mathrm{UD}}(\mu_0,\mu_m),
+\end{equation*}
+and the simulated reference discrepancies are computed by leave-one-out
+comparison among simulated trajectories:
+\begin{equation*}
+  T_m^{\mathrm{UD}}
+  =
+  \frac{1}{M-1}
+  \sum_{\ell \ne m} D_{\mathrm{UD}}(\mu_m,\mu_\ell).
+\end{equation*}
+Under a well-specified generative model, the observed UD should not be more
+spatially isolated from the simulated UDs than simulated UDs are from one
+another. A small Monte Carlo p-value therefore indicates that the fitted model
+does not reproduce the long-run spatial footprint of the observed trajectory.
+In an HMM-SSF, this failure can arise from the state-specific SSF kernels, from
+unrealistic state occupancy or residence near particular habitats, or from an
+interaction between movement and switching dynamics.
+
+\paragraph{Mean squared displacement discrepancy.}
+Mean squared displacement (MSD) targets the temporal scaling of movement
+\citep{turchin1998}, and is closely related to net squared displacement
+summaries used to characterize movement phenotypes \citep{bastilleRousseau2016}.
+For trajectory $r \in \{0,1,\ldots,M\}$ and lag $k$, define
+\begin{equation*}
+  \mathrm{MSD}_r(k)
+  =
+  \frac{1}{T-k}\sum_{t=1}^{T-k}
+  \|X_{t+k}^{(r)}-X_t^{(r)}\|^2 .
+\end{equation*}
+Let $\mathcal{K}$ be the set of lags used for the diagnostic, and let
+$w_k \ge 0$ be optional weights used to emphasize particular temporal scales
+(with $w_k=1$ in the unweighted case). The model-expected MSD curve is
+estimated from the simulated ensemble,
+\[
+  \overline{\mathrm{MSD}}_{\mathrm{sim}}(k)
+  =
+  \frac{1}{M}\sum_{m=1}^{M}\mathrm{MSD}_m(k).
+\]
+The observed MSD discrepancy is then
+\begin{equation}
+  T_{\mathrm{obs}}^{\mathrm{MSD}}
+  =
+  \sum_{k \in \mathcal{K}}
+  w_k
+  \left[
+    \mathrm{MSD}_0(k)
+    -
+    \overline{\mathrm{MSD}}_{\mathrm{sim}}(k)
+  \right]^2 .
+  \label{eq:msd-tobs}
+\end{equation}
+For each simulated trajectory $m$, the reference statistic is computed against
+the leave-one-out simulated mean,
+\begin{equation}
+  T_m^{\mathrm{MSD}}
+  =
+  \sum_{k \in \mathcal{K}}
+  w_k
+  \left[
+    \mathrm{MSD}_m(k)
+    -
+    \overline{\mathrm{MSD}}_{-m}(k)
+  \right]^2 ,
+  \label{eq:msd-tsim}
+\end{equation}
+where
+\[
+  \overline{\mathrm{MSD}}_{-m}(k)
+  =
+  \frac{1}{M-1}\sum_{\ell \ne m}\mathrm{MSD}_{\ell}(k).
+\]
+This discrepancy is sensitive to both the magnitude and the shape of the MSD
+curve. It can detect trajectories that diffuse too rapidly, remain too
+spatially constrained, or exhibit non-smooth displacement dynamics that are not
+reproduced by the fitted HMM-SSF. In multi-state models, MSD is particularly
+useful because it depends jointly on state-specific movement kernels and on the
+temporal arrangement of states. A model may match average step lengths within
+states but still fail to reproduce MSD if residence times or switching
+patterns are wrong.
+
+\paragraph{Sinuosity discrepancy.}
+Path sinuosity targets the geometry of the realized path rather than its
+spatial footprint or displacement scaling. We use the straightness index
+\citep{benhamou2004},
+\begin{equation*}
+  \mathrm{SI}_r
+  =
+  \frac{\|X_T^{(r)}-X_1^{(r)}\|}
+  {\sum_{t=1}^{T-1}\|X_{t+1}^{(r)}-X_t^{(r)}\|},
+  \qquad 0 \le \mathrm{SI}_r \le 1.
+\end{equation*}
+Low values correspond to more tortuous paths, whereas values close to one
+indicate comparatively straight movement. Let
+\[
+  \overline{\mathrm{SI}}_{\mathrm{sim}}
+  =
+  \frac{1}{M}\sum_{m=1}^{M}\mathrm{SI}_m
+\]
+be the simulated mean straightness index. The observed discrepancy is
+\begin{equation*}
+  T_{\mathrm{obs}}^{\mathrm{SI}}
+  =
+  \left|
+    \mathrm{SI}_0
+    -
+    \overline{\mathrm{SI}}_{\mathrm{sim}}
+  \right|,
+\end{equation*}
+and the simulated reference discrepancies are
+\begin{equation*}
+  T_m^{\mathrm{SI}}
+  =
+  \left|
+    \mathrm{SI}_m
+    -
+    \overline{\mathrm{SI}}_{-m}
+  \right|,
+  \qquad
+  \overline{\mathrm{SI}}_{-m}
+  =
+  \frac{1}{M-1}\sum_{\ell \ne m}\mathrm{SI}_{\ell}.
+\end{equation*}
+The absolute discrepancy is used because both directions are biologically
+meaningful: simulated paths can be too straight, suggesting excessive
+directional persistence or too much time in travelling-like regimes, or too
+tortuous, suggesting excessive turning or too much time in localized regimes.
+In HMM-SSFs, sinuosity is therefore a useful bridge between movement kernels
+and state occupancy: it can flag cases where the marginal spatial distribution
+looks acceptable but the behavioural geometry of the path is unrealistic.
+
+\paragraph{Barrier-crossing discrepancy.}
+When a known barrier geometry is available, the HMM-SSF workflow inherits the
+barrier-crossing pillar from the single-state SSF framework. The diagnostic
+compares the observed number of intersections between movement steps and a
+specified linear feature with the corresponding simulated distribution. Let
+$B$ denote the barrier geometry and let
+\begin{equation*}
+  C(X_{1:T}^{(r)};B)
+  =
+  \sum_{t=1}^{T-1}
+  \ind\{[X_t^{(r)},X_{t+1}^{(r)}]\cap B \ne \emptyset\}
+\end{equation*}
+be the number of step segments crossing the barrier. When the scientific
+concern is excess permeability, the one-sided Monte Carlo p-value is
+\begin{equation}
+  p_{\mathrm{barrier}}
+  =
+  \frac{
+    1+
+    \sum_{m=1}^{M}
+    \ind\{
+      C(X_{1:T}^{(m)};B)
+      \le
+      C(X_{1:T}^{(0)};B)
+    \}
+  }{M+1}.
+  \label{eq:barrier-pvalue}
+\end{equation}
+Small values indicate that the observed trajectory crosses the barrier less
+often than expected under the fitted model, suggesting that the model
+overestimates permeability. If the ecological concern is instead that the
+model is too restrictive, the inequality in Eq.~\eqref{eq:barrier-pvalue} can
+be reversed. In a latent-state model, barrier mismatch can arise from the
+state-specific selection kernels, from unrealistic residence near the barrier,
+or from the state process assigning barrier-crossing opportunities to the wrong
+regimes. This diagnostic is therefore interpreted jointly with state
+occupancy, residence time, and state-conditioned movement summaries when
+state-specific barrier response is scientifically relevant. As in the
+single-state framework, the barrier must be specified a priori and the
+diagnostic can have low power when crossing events are rare.
+
+\subsection{State-process diagnostics}
+
+State-process diagnostics require an observed or decoded state path and a
+corresponding simulated state path. In empirical applications, observed states
+are typically decoded, for example using the Viterbi path, rather than directly
+observed. The diagnostics should therefore be interpreted as conditional on a
+state-assignment procedure, or evaluated across several state-simulation
+strategies to assess sensitivity to latent-state uncertainty. Let
+$A_{1:T}^{(0)}$ denote the decoded or supplied state path associated with the
+observed trajectory, and let $A_{1:T}^{(m)}$, $m=1,\ldots,M$, denote simulated
+state paths generated under the fitted HMM-SSF. The following diagnostics ask
+whether $A_{1:T}^{(0)}$ is typical of the state-process distribution induced by
+the fitted model, either marginally or after conditioning on the chosen
+state-assignment strategy.
+
+\paragraph{State occupancy.}
+State occupancy measures the time budget allocated to each behavioural regime.
+For a state sequence $a_{1:T}$, define the occupancy proportion of state $s$ as
+\begin{equation*}
+  \pi_s(a)
+  =
+  \frac{1}{T}\sum_{t=1}^{T}\ind\{a_t=s\}.
+\end{equation*}
+For each state, the observed occupancy discrepancy is the absolute difference
+between the decoded observed occupancy and the mean simulated occupancy:
+\begin{equation*}
+  T_{\mathrm{obs},s}^{\mathrm{occ}}
+  =
+  \left|
+    \pi_s(A^{(0)})
+    -
+    \frac{1}{M}\sum_{m=1}^{M}\pi_s(A^{(m)})
+  \right|.
+\end{equation*}
+The simulated reference discrepancies are obtained by leave-one-out comparison:
+\begin{equation*}
+  T_{m,s}^{\mathrm{occ}}
+  =
+  \left|
+    \pi_s(A^{(m)})
+    -
+    \frac{1}{M-1}\sum_{\ell \ne m}\pi_s(A^{(\ell)})
+  \right|.
+\end{equation*}
+A global occupancy summary is also useful:
+\begin{equation*}
+  T_{\mathrm{obs}}^{\mathrm{occ,global}}
+  =
+  \frac{1}{K}
+  \sum_{s=1}^{K}
+  \left|
+    \pi_s(A^{(0)})
+    -
+    \frac{1}{M}\sum_{m=1}^{M}\pi_s(A^{(m)})
+  \right|.
+\end{equation*}
+For two-state models, per-state absolute discrepancies can be identical because
+the two occupancy proportions are complementary. In such cases, the global
+occupancy statistic provides the model-level interpretation, while per-state
+rows identify which biological regimes are over- or under-represented.
+
+\paragraph{Residence time.}
+Residence times are run lengths of consecutive visits to the same state. Let
+\[
+  \mathcal{R}_s(a)
+  =
+  \{r_{s,1}(a),\ldots,r_{s,n_s(a)}(a)\}
+\]
+be the empirical distribution of run lengths in state $s$ for sequence $a$.
+The simulation-based residence-time diagnostic compares
+$\mathcal{R}_s(A^{(0)})$ with the corresponding simulated distributions using a
+one-dimensional Wasserstein distance:
+\begin{equation}
+  T_{\mathrm{obs},s}^{\mathrm{res}}
+  =
+  \frac{1}{M}
+  \sum_{m=1}^{M}
+  W_1\{\mathcal{R}_s(A^{(0)}),\mathcal{R}_s(A^{(m)})\}.
+  \label{eq:res-tobs}
+\end{equation}
+The simulated reference statistic is
+\begin{equation}
+  T_{m,s}^{\mathrm{res}}
+  =
+  \frac{1}{M-1}
+  \sum_{\ell \ne m}
+  W_1\{\mathcal{R}_s(A^{(m)}),\mathcal{R}_s(A^{(\ell)})\}.
+  \label{eq:res-tsim}
+\end{equation}
+A small p-value indicates that residence times in the decoded observed state
+path are unusual relative to residence times generated by the fitted transition
+model. This is a stronger statement than an occupancy discrepancy: a model can
+reproduce the overall time budget in each state while producing bouts that are
+too short, too long, or too variable.
+
+\paragraph{Geometric residence-time check.}
+In a homogeneous HMM, the residence time in state $s$ has a geometric
+distribution with leaving probability $1-\Gamma_{ss}$:
+\begin{equation}
+  \Pr(R_s=r)
+  =
+  \Gamma_{ss}^{r-1}(1-\Gamma_{ss}),
+  \qquad r=1,2,\ldots .
+  \label{eq:geometric-dwell}
+\end{equation}
+This property follows directly from the Markov assumption: once the process is
+in state $s$, the probability of leaving at the next time step is constant and
+does not depend on how long the process has already remained in that state.
+The geometric residence-time diagnostic targets this assumption directly. For
+each state, bootstrap samples
+$G_s^{(1)},\ldots,G_s^{(B)}$ are generated from the geometric distribution in
+Eq.~\eqref{eq:geometric-dwell}, with sample size matching the number of
+observed residence bouts in state $s$. The observed discrepancy is
+\begin{equation*}
+  T_{\mathrm{obs},s}^{\mathrm{geo}}
+  =
+  \frac{1}{B}\sum_{b=1}^{B}
+  W_1\{\mathcal{R}_s(A^{(0)}),G_s^{(b)}\},
+\end{equation*}
+and the parametric-bootstrap reference uses leave-one-out distances among the
+geometric samples:
+\begin{equation*}
+  T_{b,s}^{\mathrm{geo}}
+  =
+  \frac{1}{B-1}\sum_{c \ne b}
+  W_1(G_s^{(b)},G_s^{(c)}).
+\end{equation*}
+A small p-value indicates that the decoded dwell-time distribution is unusual
+under the geometric distribution implied by the fitted homogeneous HMM. This is
+evidence of a residence-time mismatch, not definitive proof that a semi-Markov
+model is the correct alternative. The diagnostic is defined only for
+homogeneous transition matrices; for time-varying transition probabilities,
+residence-time adequacy should be assessed using model-generated state paths as
+in Eqs.~\eqref{eq:res-tobs}--\eqref{eq:res-tsim}.
+
+\paragraph{Switching rate and transition counts.}
+The switching rate summarizes the overall frequency of changes between latent
+regimes:
+\begin{equation*}
+  \rho(a)
+  =
+  \frac{1}{T-1}
+  \sum_{t=1}^{T-1}\ind\{a_{t+1}\ne a_t\}.
+\end{equation*}
+The observed switching discrepancy is
+\begin{equation*}
+  T_{\mathrm{obs}}^{\mathrm{switch}}
+  =
+  \left|
+    \rho(A^{(0)})
+    -
+    \frac{1}{M}\sum_{m=1}^{M}\rho(A^{(m)})
+  \right|,
+\end{equation*}
+with leave-one-out simulated discrepancies defined analogously. This diagnostic
+detects whether the fitted model switches too often or not often enough on
+average, but it does not identify which transitions are responsible.
+
+To retain directional information, let
+\[
+  N_{ij}(a)
+  =
+  \sum_{t=1}^{T-1}\ind\{a_t=i, a_{t+1}=j\}
+\]
+be the empirical transition-count matrix, and define its normalized version
+\[
+  P_{ij}(a)
+  =
+  \frac{N_{ij}(a)}{\sum_{u=1}^{K}\sum_{v=1}^{K}N_{uv}(a)}.
+\]
+Writing $\mathrm{vec}\{P(a)\}$ for the vectorized normalized transition matrix,
+the transition-count discrepancy is
+\begin{equation*}
+  T_{\mathrm{obs}}^{\mathrm{trans}}
+  =
+  \left\|
+    \mathrm{vec}\{P(A^{(0)})\}
+    -
+    \frac{1}{M}
+    \sum_{m=1}^{M}
+    \mathrm{vec}\{P(A^{(m)})\}
+  \right\|_2,
+\end{equation*}
+with simulated reference discrepancies computed by leave-one-out replacement
+of the simulated mean. Transition-count diagnostics can agree with the fitted
+HMM even when residence-time shape is misspecified, because a Markov chain can
+reproduce average transition frequencies without reproducing non-geometric
+dwell-time structure.
+
+\paragraph{State-conditioned movement summaries.}
+State-conditioned diagnostics compare movement summaries within each decoded or
+simulated state. We consider state-conditioned mean squared displacement,
+step-length distributions, and turning-angle summaries. These diagnostics
+target a different failure mode from occupancy or residence time: they ask
+whether the state-specific movement kernels reproduce the movement phenotype
+associated with each regime, conditional on the chosen state assignment.
+
+For step lengths, steps are assigned to the state at the arrival location. Let
+$L_s^{(r)}$ denote the empirical distribution of step lengths assigned to state
+$s$ in trajectory $r$. The state-specific step-length discrepancy is
+\begin{equation*}
+  T_{\mathrm{obs},s}^{\mathrm{step}}
+  =
+  \frac{1}{M}
+  \sum_{m=1}^{M}
+  W_1(L_s^{(0)},L_s^{(m)}),
+\end{equation*}
+with leave-one-out Wasserstein distances among simulated state-specific
+step-length distributions used as the reference. A small p-value indicates
+that the movement kernel for state $s$ does not reproduce the observed
+state-specific step-length distribution.
+
+For turning angles, we summarize directional concentration in state $s$ using
+the mean resultant length
+\begin{equation*}
+  R_s
+  =
+  \sqrt{
+    \left[
+      \frac{1}{n_s}\sum_{q=1}^{n_s}\cos(\alpha_{s,q})
+    \right]^2
+    +
+    \left[
+      \frac{1}{n_s}\sum_{q=1}^{n_s}\sin(\alpha_{s,q})
+    \right]^2
+  },
+\end{equation*}
+where $\alpha_{s,q}$ are the turning angles assigned to state $s$. Values near
+zero indicate dispersed turning angles, while values near one indicate strong
+directional persistence. The diagnostic compares the observed $R_s$ with the
+mean simulated $R_s$ and uses leave-one-out simulated discrepancies as the
+reference.
+
+For within-state MSD, locations assigned to state $s$ are extracted in temporal
+order and treated as a state-specific subsequence. An MSD curve is then
+computed on this ordered subsequence and compared with the mean simulated
+state-specific MSD curve using the same integrated squared discrepancy as in
+Eqs.~\eqref{eq:msd-tobs}--\eqref{eq:msd-tsim}. This diagnostic is descriptive,
+because the state-specific subsequence need not have evenly spaced dwell-time
+structure after extraction, but it is useful for identifying regimes whose
+within-state displacement dynamics are not reproduced by the fitted movement
+kernel.
+
+\section{Modelling and prediction with HMM-SSFs}
+
+The generative representation in Eq.~\eqref{eq:joint-generative} makes an
+HMM-SSF useful not only for retrospective behavioural interpretation, but also
+for prediction. Prediction is not a single task, however. Depending on the
+scientific question, the target may be the next step, the next behavioural
+state, a full future trajectory, an emergent utilization distribution, a
+barrier-crossing frequency, or a counterfactual response to a changed
+landscape. These targets use the same fitted model but place different demands
+on the transition model, the state-specific movement kernels, and the
+state-specific selection functions.
+
+\begin{table}[ht]
+\centering
+\caption{Prediction targets induced by a fitted HMM-SSF.}
+\label{tab:prediction-targets}
+\begin{tabular}{p{0.22\linewidth}p{0.34\linewidth}p{0.34\linewidth}}
+\toprule
+Prediction target & Model component emphasized & Typical output \\
+\midrule
+One-step movement & Filtered state probabilities and state-specific SSF kernels & Conditional surface or candidate-step probabilities for $X_{t+1}$ \\
+State forecasting & Transition matrix or transition model $\Gamma(z_t)$ & Predicted state probabilities, occupancy, switching probability \\
+Trajectory forecasting & Full latent-state and movement process & Simulated paths over a specified horizon \\
+Emergent space use & Iterated movement process and landscape covariates & Predicted utilization distribution or occupancy surface \\
+Connectivity or barrier response & State-specific selection and movement near known barriers & Crossing counts, first-passage summaries, side-specific residence \\
+Scenario prediction & Modified covariates or transition drivers & Counterfactual trajectories and derived summaries \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{From fitted model to predictive distribution}
+
+At short horizons, prediction can be expressed analytically as mixtures of
+state-specific kernels. Eq.~\eqref{eq:one-step-predictive} shows that the
+one-step predictive distribution combines three elements: the current state
+uncertainty $\alpha_t$, the transition probabilities $\Gamma(z_t)$, and the
+state-specific SSF kernels $f_j$. This decomposition is useful for
+interpretation. A predicted move can be uncertain because the next behavioural
+state is uncertain, because the state-specific movement kernel is diffuse, or
+because habitat selection assigns similar weights to many available endpoints.
+
+At longer horizons, exact integration is generally impractical because future
+locations determine future movement covariates, available steps, and
+environmental values. Forward simulation is therefore the natural predictive
+tool. A single predictive replicate is generated by repeating the following
+steps: sample the next state from $\Gamma(z_t)$, sample the next location from
+the corresponding state-specific SSF, update the movement history, update any
+time-varying covariates, and continue until the prediction horizon is reached.
+An ensemble of such replicates approximates the predictive distribution of any
+trajectory-level summary.
+
+\subsection{Latent-state simulation as predictive conditioning}
+
+The hidden component of an HMM-SSF is a discrete stochastic process. Simulating
+it means generating a state sequence
+\[
+  S_{1:H}^{\ast} = (S_1^{\ast},\ldots,S_H^{\ast})
+\]
+over a prediction or validation horizon $H$, then using this sequence to choose
+which state-specific SSF kernel generates each movement step. For the full
+generative model, the simulated state path is drawn from the fitted initial
+distribution and transition model:
+\begin{align*}
+  S_1^{\ast} &\sim \mathrm{Categorical}(\delta), \\
+  S_{h+1}^{\ast} \given S_h^{\ast}=i, z_h^{\ast}
+  &\sim
+  \mathrm{Categorical}\{\Gamma_{i1}(z_h^{\ast}),\ldots,\Gamma_{iK}(z_h^{\ast})\},
+  \qquad h=1,\ldots,H-1 .
+\end{align*}
+Equivalently, if $U_h \sim \mathrm{Uniform}(0,1)$, then
+\begin{equation*}
+  S_{h+1}^{\ast}
+  =
+  \min\left\{
+    j:
+    \sum_{\ell=1}^{j} \Gamma_{i\ell}(z_h^{\ast}) \ge U_h
+  \right\},
+  \qquad i=S_h^{\ast}.
+\end{equation*}
+This inverse-transform expression is useful because it makes clear that the
+next hidden state is sampled from the row of the transition matrix
+corresponding to the current hidden state.
+
+In a homogeneous HMM, $\Gamma(z_h^{\ast})=\Gamma$ for all $h$, so the hidden
+state simulation is an ordinary finite-state Markov chain. In a time-varying
+HMM, the transition matrix is recomputed at each step from the relevant
+covariates:
+\[
+  \Gamma(z_h^{\ast})
+  =
+  \left[
+    \Gamma_{ij}(z_h^{\ast})
+  \right]_{i,j=1}^{K}.
+\]
+These covariates may be external, such as time of day or season, or they may be
+functions of the simulated trajectory itself. When transition covariates depend
+on the simulated trajectory, the hidden and spatial components must be updated
+jointly: draw $S_{h+1}^{\ast}$, draw $X_{h+1}^{\ast}$ from the corresponding
+state-specific SSF, update the covariates, then proceed to the next step.
+
+Conditional on the simulated hidden path, the simulated spatial path satisfies
+\begin{equation*}
+  X_{h+1}^{\ast}
+  \given X_{h}^{\ast}, X_{h-1}^{\ast}, S_{h+1}^{\ast}=s
+  \sim
+  f_s(\cdot \given X_h^{\ast}, X_{h-1}^{\ast}, e_h^{\ast}).
+\end{equation*}
+Thus the full predictive simulation can be written as the product
+\begin{equation*}
+  p_{\theta}(s_{1:H}^{\ast},x_{1:H}^{\ast})
+  =
+  p_{\theta}(s_{1:H}^{\ast})
+  p_{\theta}(x_{1:H}^{\ast}\given s_{1:H}^{\ast}),
+\end{equation*}
+where the first term is the hidden Markov chain and the second term is the
+sequence of state-conditioned SSF draws. This decomposition is the basis for
+the different simulation strategies below.
+
+We distinguish four simulation strategies. They are not competing fitted
+models; they are four ways of conditioning the same fitted HMM-SSF before
+simulating the spatial trajectory. The difference among them is entirely in
+how the latent path $S_{1:H}^{\ast}$ is generated.
+
+\subsubsection*{Markov generation}
+
+Markov generation is the full generative use of the fitted HMM-SSF. The latent
+state sequence is simulated from the fitted initial distribution and fitted
+transition model:
+\begin{align*}
+  S_1^{\ast}
+  &\sim
+  \mathrm{Categorical}(\hat{\delta}), \\
+  S_{h+1}^{\ast}\given S_h^{\ast}=i
+  &\sim
+  \mathrm{Categorical}
+  \{\hat{\Gamma}_{i1}(z_h^{\ast}),\ldots,\hat{\Gamma}_{iK}(z_h^{\ast})\}.
+\end{align*}
+The spatial path is then generated conditionally on this sampled state path:
+\begin{equation*}
+  X_{h+1}^{\ast}
+  \given X_h^{\ast},X_{h-1}^{\ast},S_{h+1}^{\ast}=s
+  \sim
+  f_s(\cdot \given X_h^{\ast},X_{h-1}^{\ast},e_h^{\ast};\hat{\theta}).
+\end{equation*}
+Equivalently, this strategy samples from
+\[
+  p_{\hat{\theta}}(s_{1:H}^{\ast},x_{1:H}^{\ast})
+  =
+  p_{\hat{\theta}}(s_{1:H}^{\ast})
+  p_{\hat{\theta}}(x_{1:H}^{\ast}\given s_{1:H}^{\ast}).
+\]
+It is the appropriate strategy for genuine forward prediction, simulation of
+space use, and scenario analysis because it propagates both latent-state
+uncertainty and movement stochasticity.
+
+\subsubsection*{Viterbi-conditioned generation}
+
+Viterbi-conditioned generation fixes the latent path to the most likely decoded
+state sequence for the observed trajectory. If
+\begin{equation*}
+  \hat{s}_{1:T}^{V}
+  =
+  \arg\max_{s_{1:T}}
+  p_{\hat{\theta}}(s_{1:T}\given x_{1:T}),
+\end{equation*}
+then this strategy sets
+\begin{equation*}
+  S_{1:T}^{\ast}=\hat{s}_{1:T}^{V}
+\end{equation*}
+and simulates only the spatial component
+\begin{equation*}
+  X_{1:T}^{\ast}
+  \sim
+  p_{\hat{\theta}}(X_{1:T}\given S_{1:T}=\hat{s}_{1:T}^{V}).
+\end{equation*}
+This is not a full predictive distribution for future movement, because the
+latent state sequence is treated as known. Its purpose is diagnostic: it asks
+whether the state-specific movement and selection kernels can reproduce the
+trajectory when the regime sequence is held fixed. If the Viterbi-conditioned
+strategy is compatible with the observed trajectory but Markov generation is
+not, the discrepancy is more plausibly associated with the transition model,
+state occupancy, residence times, or switching structure.
+
+\subsubsection*{Posterior state-path generation}
+
+Posterior state-path generation samples the latent path from the smoothing
+distribution implied by the fitted model and observed trajectory:
+\begin{equation*}
+  S_{1:T}^{\ast}
+  \sim
+  p_{\hat{\theta}}(S_{1:T}\given X_{1:T}=x_{1:T}).
+\end{equation*}
+In practice, this can be implemented by forward-filtering backward-sampling.
+If $\alpha_h(i)=\Pr_{\hat{\theta}}(S_h=i\given X_{1:h}=x_{1:h})$ denotes the
+filtered probability at time $h$, then a backward draw satisfies
+\begin{align*}
+  S_T^{\ast}
+  &\sim
+  \Pr_{\hat{\theta}}(S_T\given X_{1:T}=x_{1:T}), \\
+  \Pr(S_h^{\ast}=i\given S_{h+1}^{\ast}=j,X_{1:T}=x_{1:T})
+  &\propto
+  \alpha_h(i)\hat{\Gamma}_{ij}(z_h),
+  \qquad h=T-1,\ldots,1 .
+\end{align*}
+After a posterior state path is sampled, the spatial trajectory is simulated
+from
+\[
+  X_{1:T}^{\ast}
+  \sim
+  p_{\hat{\theta}}(X_{1:T}\given S_{1:T}^{\ast}).
+\]
+This strategy incorporates uncertainty in state assignment while remaining
+conditioned on the information in the observed trajectory. It is useful when
+the scientific question is whether diagnostic conclusions depend on treating a
+single decoded state path as fixed.
+
+\subsubsection*{Viterbi-tube generation}
+
+Viterbi-tube generation is a sensitivity strategy centred on the Viterbi path.
+Let $d(s_{1:T},\hat{s}_{1:T}^{V})$ be a distance between state sequences, for
+example a Hamming distance or another application-specific discrepancy. For a
+tolerance $\epsilon$, define the tube around the Viterbi path as
+\begin{equation*}
+  \mathcal{T}_{\epsilon}(\hat{s}^{V})
+  =
+  \{s_{1:T}: d(s_{1:T},\hat{s}_{1:T}^{V})\le \epsilon\}.
+\end{equation*}
+The idealized Viterbi-tube strategy samples from the posterior distribution
+restricted to this tube:
+\begin{equation*}
+  \Pr_{\hat{\theta}}(S_{1:T}^{\ast}=s_{1:T}
+  \given X_{1:T}=x_{1:T}, S_{1:T}\in\mathcal{T}_{\epsilon})
+  =
+  \frac{
+    p_{\hat{\theta}}(s_{1:T}\given x_{1:T})
+    \ind\{s_{1:T}\in\mathcal{T}_{\epsilon}(\hat{s}^{V})\}
+  }{
+    \sum_{\tilde{s}_{1:T}\in\mathcal{T}_{\epsilon}(\hat{s}^{V})}
+    p_{\hat{\theta}}(\tilde{s}_{1:T}\given x_{1:T})
+  }.
+\end{equation*}
+The spatial trajectory is then simulated conditionally on the sampled path.
+This strategy is not intended as a new ecological model. It asks whether the
+diagnostic conclusions depend on one exact Viterbi sequence or remain stable
+for nearby high-support regime sequences.
+
+\subsection{Prediction after model checking}
+
+The diagnostics in this paper are intended to make prediction more explicit.
+For example, if utilization-distribution diagnostics are compatible but MSD
+diagnostics fail, the model may still be useful for long-term spatial footprint
+prediction while being unreliable for transient displacement or encounter-rate
+prediction. If state occupancy is compatible but residence-time diagnostics
+fail, predicted time budgets may be reasonable while predicted bout durations
+or switching sequences remain unreliable. If state-conditioned step-length
+diagnostics fail, forecasts that depend on travel distance, connectivity, or
+barrier-crossing opportunities should be treated cautiously even if global
+space-use summaries look acceptable.
+
+This perspective separates model fitting from model use. A fitted HMM-SSF can
+be statistically estimable and biologically interpretable without being
+adequate for every predictive purpose. Generative validation identifies which
+features of the predictive distribution are supported by the fitted model and
+which features require model refinement, additional states, time-varying
+transition structure, memory, or richer state-specific movement kernels.
+
+\section{Simulation study}
+
+This section defines the proposed simulation programme. No simulation results
+are reported at this stage. The objective is to specify a design that can be
+discussed before implementation, so that the final study tests the
+methodological claims of the paper rather than only illustrating the software.
+
+The simulation study has four goals. First, it should assess calibration under
+well-specified HMM-SSFs: when the fitted model matches the data-generating
+process, the observed trajectory should not be systematically extreme relative
+to the fitted generative distribution. Second, it should evaluate diagnostic
+sensitivity under controlled misspecification, with each scenario targeting a
+distinct model component. Third, it should determine whether trajectory-level
+and state-process diagnostics identify different failure modes. Fourth, it
+should clarify how conclusions depend on the way latent state uncertainty is
+handled during simulation.
+
+\paragraph{General protocol.}
+All scenarios will use the same basic workflow. A known data-generating process
+will be used to simulate a movement trajectory, the candidate model or models
+will be fitted to that trajectory, and the fitted model will be used to
+generate replicated trajectories and state sequences. The diagnostic workflow
+will then compare the observed simulated trajectory with the model-generated
+replicates. For each scenario, the planned outputs are Monte Carlo p-values,
+observed discrepancies, simulation-reference variability, diagnostic sharpness,
+and rejection frequencies across independent replicate data sets.
+
+The default synthetic landscape will contain one smooth habitat covariate and,
+for the barrier scenarios, one linear barrier. The default behavioural
+interpretation will use an encamped state with short, tortuous steps and a
+travelling state with longer, more persistent movement. Step lengths will be
+generated from state-specific positive distributions, turning angles from
+state-specific circular distributions, and endpoint weights from
+state-specific selection coefficients. Unless a scenario explicitly changes
+one component, the fitted model will contain the same covariates and the same
+number of states as the data-generating process.
+
+\begin{table}[ht]
+\centering
+\caption{Planned simulation scenarios for evaluating HMM-SSF generative diagnostics.}
+\label{tab:simulation-plan}
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{3pt}
+\footnotesize
+\begin{tabular}{p{0.08\linewidth}p{0.22\linewidth}p{0.27\linewidth}p{0.31\linewidth}}
+\toprule
+ID & Purpose & Fitted models & Primary diagnostic target \\
+\midrule
+S0 & Calibration under a correct two-state HMM-SSF. &
+Correct two-state HMM-SSF. &
+Approximate calibration of all diagnostic p-values. \\
+
+S1 & Loss induced by collapsing two behavioural regimes into one. &
+One-state SSF and correct two-state HMM-SSF. &
+Trajectory-level MSD and sinuosity, with UD used as a contrasting spatial diagnostic. \\
+
+S2 & Incorrect number of latent states. &
+One-, two-, three-, and four-state HMM-SSFs fitted to data generated with three states. &
+Occupancy, state-conditioned movement, and trajectory geometry. \\
+
+S3 & Missing time variation in the transition matrix. &
+Fixed-TPM and time-varying-TPM HMM-SSFs. &
+Occupancy, switching rate, residence time, and MSD. \\
+
+S4 & Misspecified state-specific movement kernel. &
+Simplified movement kernel compared with the correct movement kernel. &
+State-specific step length, turning angle, within-state MSD, and global MSD. \\
+
+S5 & Misspecified habitat-selection structure. &
+No habitat effect, shared habitat effect, and correct state-specific habitat effect. &
+UD discrepancy and state-conditioned movement or space-use summaries. \\
+
+S6 & Misspecified barrier response. &
+No barrier response, common barrier response, and correct state-specific barrier response. &
+Barrier crossing and state-specific crossing opportunities. \\
+
+S7 & Non-geometric residence times. &
+HMM-SSF fitted to trajectories generated from an HSMM-like state process. &
+Residence-time and geometric-dwell diagnostics, with occupancy as a negative control. \\
+
+S8 & Sensitivity to state uncertainty and weak state separation. &
+Correct HMM-SSF analyzed with Markov, Viterbi-conditioned, posterior path, and Viterbi-tube simulations. &
+Robustness of state-process diagnostics to the state-assignment rule. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\FloatBarrier
+
+\paragraph{Scenario S0: well-specified two-state HMM-SSF.}
+The data-generating process will be a two-state HMM-SSF with one encamped state
+and one travelling state. The two states will differ in step-length scale,
+turning-angle concentration, habitat-selection strength, and persistence. The
+fitted model will use the correct number of states, the correct habitat
+covariate, and the correct transition structure. This scenario is the
+calibration check for the entire workflow. The expected result is that
+trajectory-level and state-process p-values are not systematically small,
+apart from finite-sample and state-decoding effects.
+
+\paragraph{Scenario S1: single-state approximation to a two-state process.}
+The data-generating process will be the same as in S0, but the fitted
+comparison will include a one-state SSF and the correctly specified two-state
+HMM-SSF. This scenario tests the main motivation for the HMM extension of the
+single-state framework. The one-state model may reproduce parts of the spatial
+footprint, especially when the two states use similar areas, but it should
+struggle to reproduce displacement scaling and path geometry. The primary
+diagnostics are MSD and sinuosity; UD is included to show that spatial
+compatibility alone does not imply dynamic adequacy.
+
+\paragraph{Scenario S2: incorrect number of states.}
+The data-generating process will contain three states: an encamped state, an
+intermediate movement state, and a travelling state. Candidate models with one,
+two, three, and four states will be fitted. The purpose is to distinguish
+underfitting from overfitting. Models with too few states should show
+state-conditioned movement discrepancies, distorted occupancy, and possible
+MSD or sinuosity failures. Models with too many states may generate redundant
+or poorly occupied regimes, which should appear in occupancy, transition, and
+state-conditioned diagnostics.
+
+\paragraph{Scenario S3: missing time-varying transition structure.}
+The data-generating process will use a two-state HMM-SSF in which the
+transition matrix depends on a cyclic temporal covariate, such as time of day.
+The fitted comparison will include a fixed-TPM model and the correct
+time-varying-TPM model. The goal is to test whether the diagnostics detect
+temporal organization in the state process that is not visible from the
+state-specific movement kernels alone. The primary diagnostics are occupancy
+through time, switching rate, residence time, transition counts, and MSD.
+
+\paragraph{Scenario S4: misspecified movement kernel.}
+The data-generating process will keep the correct state-transition and
+selection structure, but one state will have a movement distribution that is
+not available to the fitted simplified model. For example, the travelling
+state may have heavier-tailed step lengths or stronger directional persistence
+than the fitted kernel allows. The fitted comparison will include the
+simplified movement kernel and, if available, the correctly specified movement
+kernel. This scenario targets state-specific step-length discrepancies,
+turning-angle concentration, within-state MSD, and global MSD.
+
+\paragraph{Scenario S5: misspecified habitat selection.}
+The data-generating process will include state-specific habitat selection. For
+example, the encamped state may strongly select high values of the habitat
+covariate, while the travelling state may respond weakly or in the opposite
+direction. Three fitted models will be compared: a model with no habitat
+effect, a model with a shared habitat coefficient across states, and the
+correct state-specific model. This scenario tests whether the UD diagnostic
+and state-conditioned summaries can detect selection misspecification even
+when movement kernels and transition probabilities are otherwise adequate.
+
+\paragraph{Scenario S6: misspecified barrier response.}
+The data-generating process will include a linear barrier that affects
+movement differently by state. For example, the encamped state may rarely
+cross the barrier, while the travelling state may cross it with lower but
+nonzero resistance. Candidate fitted models will omit the barrier, include a
+common barrier effect, or include the correct state-specific barrier response.
+The primary diagnostic is the barrier-crossing statistic, interpreted jointly
+with state occupancy near the barrier and state-conditioned crossing
+opportunities.
+
+\paragraph{Scenario S7: residence-time memory.}
+The data-generating process will use an HSMM-like state sequence with
+non-geometric residence times, while keeping HMM-like state-specific movement
+and selection kernels. The fitted model will be an HMM-SSF, so the fitted
+state process will impose geometric residence times. This scenario is designed
+to answer whether the residence-time diagnostics can detect memory in the
+latent process. The expected signature is that residence-time and
+geometric-dwell diagnostics reject, while occupancy and average switching rate
+may remain compatible.
+
+\paragraph{Scenario S8: state uncertainty and weak state separation.}
+The data-generating process will be a correctly specified two-state HMM-SSF
+with weak separation between states. Two variants will be used: one where
+states differ mainly in movement and one where states differ mainly in habitat
+selection. The fitted model will be correct, but diagnostics will be computed
+using true simulated states, the Viterbi path, posterior state-path samples,
+and Viterbi-tube simulations. This scenario tests whether state-process
+conclusions are robust to state uncertainty or depend on a single decoded path.
+
+\paragraph{Reporting structure.}
+The final simulation section should report calibration and power separately.
+Calibration will be assessed from S0 using the distribution of p-values across
+replicate data sets. Diagnostic sensitivity will be summarized from S1--S8 as
+rejection frequencies by scenario and diagnostic family. Each scenario should
+also include one representative diagnostic plot, chosen to show the mechanism
+of failure rather than only the numerical p-value. Before implementation, the
+remaining fixed choices are the number of replicate data sets, the trajectory
+lengths, the number of available steps, and the Monte Carlo simulation count
+used inside each diagnostic test.
+
+\FloatBarrier
+
+\section{Zebra model-comparison example}
+
+The empirical demonstration uses the zebra HMM-SSF example of
+\citet{klappstein2023}. Four candidate models are compared using Markov
+generation for all fitted models:
+
+\begin{table}[ht]
+\centering
+\caption{Candidate models in the zebra comparison.}
+\label{tab:zebra-models}
+\begin{tabular}{llll}
+\toprule
+Label & States & Transition model & Interpretation \\
+\midrule
+M1 & 1 & Degenerate & Single-state SSF baseline \\
+M2 & 2 & Constant TPM & Two states, no time-of-day effect \\
+M3 & 2 & Time-varying TPM & Two states, time-of-day effect \\
+M4 & 3 & Constant TPM & Three-state fixed-transition alternative \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The SSF formula in the zebra application is
+\[
+  \texttt{\char`~ step + log(step) + cos(angle) + veg},
+\]
+which includes movement terms and a vegetation covariate. The time-varying
+transition model uses cyclic time-of-day terms,
+\[
+  \texttt{\char`~ cos(2*pi*tod/24) + sin(2*pi*tod/24)}.
+\]
+The comparison uses 99 Markov simulations per candidate model, giving a Monte
+Carlo p-value resolution of 0.01.
+
+\begin{table}[ht]
+\centering
+\caption{Trajectory-level zebra diagnostics from the current empirical analysis. Values are observed discrepancies with Monte Carlo p-values in parentheses.}
+\label{tab:zebra-global}
+\begin{tabular}{llll}
+\toprule
+Model & UD Wasserstein & MSD & Sinuosity \\
+\midrule
+M1 one-state SSF & 19.04 (0.61) & $1.25\times 10^6$ (0.02) & 0.175 (0.01) \\
+M2 two-state fixed TPM & 12.99 (0.30) & $3.48\times 10^4$ (0.01) & 0.108 (0.05) \\
+M3 two-state time TPM & 12.81 (0.25) & $3.66\times 10^4$ (0.01) & 0.107 (0.06) \\
+M4 three-state fixed TPM & 12.91 (0.24) & $2.95\times 10^4$ (0.01) & 0.099 (0.13) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The UD discrepancy is not extreme for any candidate model in this run. MSD is
+extreme for every candidate model, including the multi-state alternatives. The
+one-state model fails strongly on sinuosity, whereas the multi-state models are
+less discrepant, with the three-state fixed model giving the largest sinuosity
+p-value in this analysis.
+
+\begin{figure}[ht]
+\centering
+\maybeincludegraphics[width=0.82\linewidth]{../docs/articles/zebra-model-comparison_files/figure-html/global-pvalue-heatmap-1.png}
+\caption{Monte Carlo p-values for the trajectory-level zebra diagnostics.}
+\label{fig:zebra-pvalues}
+\end{figure}
+
+State-level diagnostics are interpreted conditionally on the decoded observed
+state path. In two-state fits, per-state occupancy discrepancies can be
+identical because the occupancy proportions sum to one. The global occupancy
+discrepancy is therefore preferred for model-level reporting, with per-state
+rows used to identify which regime contributes to the mismatch.
+
+\bibliographystyle{apalike}
+\bibliography{references}
+
+\end{document}
